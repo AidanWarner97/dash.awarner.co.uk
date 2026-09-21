@@ -1,0 +1,9 @@
+DirectoryIndex index.php
+Options -Indexes
+
+<FilesMatch "^(?:\.env|\.env\.example)$">
+    Require all denied
+</FilesMatch>
+
+RewriteEngine On
+RewriteRule ^includes/ - [F,L]
