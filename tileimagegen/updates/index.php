@@ -22,7 +22,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 			exit;
 		}
 
-		$filename = updates_save_post($_POST);
+		$submission = isset($_POST['payload']) ? updates_decode_submission((string) $_POST['payload']) : $_POST;
+		$filename = updates_save_post($submission);
 		header('Location: /tileimagegen/updates/?saved=1&edit=' . rawurlencode($filename));
 		exit;
 	} catch (Throwable $exception) {
@@ -52,7 +53,8 @@ $form = [
 	'content' => $editing['content_raw'] ?? '',
 ];
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['action'] ?? 'save') === 'save') {
-	foreach (array_keys($form) as $key) if (isset($_POST[$key])) $form[$key] = (string) $_POST[$key];
+	$submittedForm = isset($_POST['payload']) ? ($submission ?? []) : $_POST;
+	foreach (array_keys($form) as $key) if (isset($submittedForm[$key])) $form[$key] = (string) $submittedForm[$key];
 }
 
 $settings = project_settings('tileimagegen');
@@ -69,16 +71,16 @@ dashboard_header($settings['title'] . ': Updates', 'tile-updates', 'tileimagegen
 	<?php if (!updates_writes_enabled()): ?><div class="data-notice"><i data-lucide="lock-keyhole"></i><div><strong>Update writing is disabled</strong><p>Add <code>DASHBOARD_ALLOW_WRITES=true</code> after administrator authentication is configured. Existing posts remain available to review.</p></div></div><?php endif; ?>
 
 	<?php if ($showEditor): ?>
-		<form class="content-card update-editor" method="post" action="/tileimagegen/updates/">
-			<input type="hidden" name="csrf_token" value="<?= $escape(updates_csrf_token()) ?>"><input type="hidden" name="action" value="save"><input type="hidden" name="original" value="<?= $escape($form['original']) ?>">
+		<form class="content-card update-editor" method="post" action="/tileimagegen/updates/" data-update-editor>
+			<input type="hidden" name="csrf_token" value="<?= $escape(updates_csrf_token()) ?>"><input type="hidden" name="action" value="save"><input type="hidden" name="payload" value=""><input type="hidden" data-update-field="original" value="<?= $escape($form['original']) ?>">
 			<div class="card-heading"><div><small>EDITOR</small><h2><?= $editing ? 'EDIT UPDATE' : 'NEW UPDATE' ?></h2></div><a class="text-button" href="/tileimagegen/updates/">Close <i data-lucide="x"></i></a></div>
 			<div class="editor-fields">
-				<label class="wide">Title<input name="title" maxlength="180" required value="<?= $escape($form['title']) ?>" placeholder="Update title"></label>
-				<label>Slug<input name="slug" value="<?= $escape($form['slug']) ?>" placeholder="generated-from-title"></label>
-				<label>Author<input name="author" maxlength="100" required value="<?= $escape($form['author']) ?>"></label>
-				<label>Publication state<select name="state" id="update-state"><option value="draft"<?= $form['state'] === 'draft' ? ' selected' : '' ?>>Draft</option><option value="published"<?= $form['state'] === 'published' ? ' selected' : '' ?>>Published</option><option value="scheduled"<?= $form['state'] === 'scheduled' ? ' selected' : '' ?>>Scheduled</option></select></label>
-				<label id="publish-at-field">Publication date<input type="date" name="publish_at" value="<?= $escape($form['publish_at']) ?>" required></label>
-				<label class="wide">Content <span>Markdown supported</span><textarea name="content" rows="18" required placeholder="Write the update in Markdown…"><?= $escape($form['content']) ?></textarea></label>
+				<label class="wide">Title<input data-update-field="title" maxlength="180" required value="<?= $escape($form['title']) ?>" placeholder="Update title"></label>
+				<label>Slug<input data-update-field="slug" value="<?= $escape($form['slug']) ?>" placeholder="generated-from-title"></label>
+				<label>Author<input data-update-field="author" maxlength="100" required value="<?= $escape($form['author']) ?>"></label>
+				<label>Publication state<select data-update-field="state" id="update-state"><option value="draft"<?= $form['state'] === 'draft' ? ' selected' : '' ?>>Draft</option><option value="published"<?= $form['state'] === 'published' ? ' selected' : '' ?>>Published</option><option value="scheduled"<?= $form['state'] === 'scheduled' ? ' selected' : '' ?>>Scheduled</option></select></label>
+				<label id="publish-at-field">Publication date<input type="date" data-update-field="publish_at" value="<?= $escape($form['publish_at']) ?>" required></label>
+				<label class="wide">Content <span>Markdown supported</span><textarea data-update-field="content" rows="18" required placeholder="Write the update in Markdown…"><?= $escape($form['content']) ?></textarea></label>
 			</div>
 			<div class="editor-actions"><a class="secondary-button" href="/tileimagegen/updates/">Cancel</a><button class="primary-button" type="submit"<?= updates_writes_enabled() ? '' : ' disabled' ?>><i data-lucide="save"></i>Save update</button></div>
 		</form>

@@ -171,6 +171,24 @@ function updates_save_post(array $input): string
     return $filename;
 }
 
+function updates_decode_submission(string $payload): array
+{
+    if ($payload === '' || strlen($payload) > 2_000_000 || preg_match('/^[A-Za-z0-9_-]+$/', $payload) !== 1) {
+        throw new InvalidArgumentException('The update submission is invalid. Refresh and try again.');
+    }
+
+    $padding = (4 - strlen($payload) % 4) % 4;
+    $decoded = base64_decode(strtr($payload, '-_', '+/') . str_repeat('=', $padding), true);
+    if ($decoded === false || !mb_check_encoding($decoded, 'UTF-8')) {
+        throw new InvalidArgumentException('The update submission could not be decoded.');
+    }
+
+    $input = json_decode($decoded, true, 8, JSON_THROW_ON_ERROR);
+    if (!is_array($input)) throw new InvalidArgumentException('The update submission is invalid.');
+    $allowed = ['original', 'title', 'slug', 'author', 'state', 'publish_at', 'content'];
+    return array_intersect_key($input, array_flip($allowed));
+}
+
 function updates_delete_post(string $filename): void
 {
     if (!updates_writes_enabled()) {

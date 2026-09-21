@@ -41,6 +41,23 @@ if (updateState) {
     refreshPublicationField();
 }
 
+const updateEditor = document.querySelector('[data-update-editor]');
+if (updateEditor) {
+    updateEditor.addEventListener('submit', () => {
+        const fields = {};
+        updateEditor.querySelectorAll('[data-update-field]').forEach(field => {
+            fields[field.dataset.updateField] = field.value;
+        });
+        const bytes = new TextEncoder().encode(JSON.stringify(fields));
+        let binary = '';
+        const chunkSize = 0x8000;
+        for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+            binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+        }
+        updateEditor.elements.payload.value = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+    });
+}
+
 const chartData = document.querySelector('#downloads-chart-data');
 const chartCanvas = document.querySelector('#downloads-chart');
 if (chartData && chartCanvas && window.Chart) {
