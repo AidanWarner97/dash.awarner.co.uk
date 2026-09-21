@@ -85,7 +85,7 @@ function feedback_management_list(array $filters): array
     $feedbackTable = project_database_table('tileimagegen', 'feedback');
     $stateJoin = $hasManagementTables ? ' LEFT JOIN feedback_admin_state admin_state ON admin_state.feedback_id = feedback.id' : '';
     $readColumn = $hasManagementTables ? 'admin_state.read_at' : 'NULL';
-    $sql = "SELECT feedback.id, feedback.public_id, feedback.first_name, feedback.last_name, feedback.email, feedback.subject, feedback.feedback_type, feedback.status, feedback.created_at, {$readColumn} AS read_at FROM {$feedbackTable} feedback{$stateJoin} WHERE 1=1";
+    $sql = "SELECT feedback.id, feedback.public_id, feedback.first_name, feedback.last_name, feedback.email, feedback.subject, feedback.feedback_category, feedback.feedback_type, feedback.status, feedback.created_at, {$readColumn} AS read_at FROM {$feedbackTable} feedback{$stateJoin} WHERE 1=1";
     $params = [];
 
     $search = trim((string) ($filters['q'] ?? ''));
