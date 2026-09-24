@@ -81,11 +81,21 @@ dashboard_header($settings['title'] . ': Catalogue', 'tile-catalogue', 'tileimag
         <div class="content-card catalogue-manager">
             <div class="card-heading"><div><small><?= (int) $summary['sizes'] ?> SIZES</small><h2>PREDEFINED IMAGES</h2></div></div>
             <?php if ($summary['sizes'] === 0): ?><div class="list-message">No catalogue sizes have been added.</div><?php endif; ?>
-            <?php foreach ($catalogue['brands'] as $brand): ?>
-                <?php foreach (($brand['ranges'] ?? []) as $range): ?>
-                    <?php foreach (($range['versions'] ?? []) as $version): ?>
-                        <section class="catalogue-group">
-                            <div class="catalogue-group-heading"><div><small><?= $escape($brand['name'] ?? '') ?> / <?= $escape($range['name'] ?? '') ?></small><h3><?= $escape($version['name'] ?? '') ?></h3></div><span><?= count($version['sizes'] ?? []) ?> size(s)</span></div>
+            <?php foreach ($catalogue['brands'] as $brandIndex => $brand): ?>
+                <?php $brandRangeCount = count($brand['ranges'] ?? []); ?>
+                <details class="catalogue-accordion catalogue-brand"<?= $brandIndex === 0 ? ' open' : '' ?>>
+                    <summary><span class="catalogue-accordion-icon"><i data-lucide="building-2"></i></span><span><strong><?= $escape($brand['name'] ?? '') ?></strong><small><?= $brandRangeCount ?> range(s)</small></span><i class="catalogue-chevron" data-lucide="chevron-down"></i></summary>
+                    <div class="catalogue-accordion-content">
+                    <?php foreach (($brand['ranges'] ?? []) as $range): ?>
+                        <?php $rangeVersionCount = count($range['versions'] ?? []); ?>
+                        <details class="catalogue-accordion catalogue-range">
+                            <summary><span class="catalogue-accordion-icon"><i data-lucide="layers-3"></i></span><span><strong><?= $escape($range['name'] ?? '') ?></strong><small><?= $rangeVersionCount ?> version(s)</small></span><i class="catalogue-chevron" data-lucide="chevron-down"></i></summary>
+                            <div class="catalogue-accordion-content">
+                            <?php foreach (($range['versions'] ?? []) as $version): ?>
+                                <?php $versionSizeCount = count($version['sizes'] ?? []); ?>
+                                <details class="catalogue-accordion catalogue-version">
+                                    <summary><span class="catalogue-accordion-icon"><i data-lucide="swatch-book"></i></span><span><strong><?= $escape($version['name'] ?? '') ?></strong><small><?= $versionSizeCount ?> size(s)</small></span><i class="catalogue-chevron" data-lucide="chevron-down"></i></summary>
+                                    <div class="catalogue-sizes">
                             <?php foreach (($version['sizes'] ?? []) as $size): ?>
                                 <?php $editData = [
                                     'original_brand' => $brand['id'] ?? '', 'original_range' => $range['id'] ?? '', 'original_version' => $version['id'] ?? '', 'original_size' => $size['id'] ?? '',
@@ -95,18 +105,16 @@ dashboard_header($settings['title'] . ': Catalogue', 'tile-catalogue', 'tileimag
                                 ]; ?>
                                 <div class="catalogue-size">
                                     <div class="catalogue-size-heading"><div><strong><?= $escape($size['name'] ?? '') ?></strong><small><?= (int) ($size['width'] ?? 0) ?> × <?= (int) ($size['height'] ?? 0) ?> px</small></div><div class="catalogue-size-controls"><span><?= count($size['images'] ?? []) ?> image(s)</span><button class="icon-button" type="button" data-catalogue-edit="<?= $escape(json_encode($editData, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)) ?>" title="Edit entry" aria-label="Edit <?= $escape($size['name'] ?? '') ?>"><i data-lucide="pencil"></i></button></div></div>
-                                    <?php if (empty($size['images'])): ?><p class="catalogue-empty">No images attached to this size.</p><?php endif; ?>
-                                    <div class="catalogue-images">
-                                        <?php foreach (($size['images'] ?? []) as $image): ?><article class="catalogue-image">
-                                            <a href="<?= $escape($imageUrl((string) $image)) ?>" target="_blank" rel="noreferrer"><img src="<?= $escape($imageUrl((string) $image)) ?>" alt="" loading="lazy"></a>
-                                            <div><span title="<?= $escape($image) ?>"><?= $escape(basename((string) $image)) ?></span><form method="post"><input type="hidden" name="csrf_token" value="<?= $escape(updates_csrf_token()) ?>"><input type="hidden" name="action" value="delete-image"><input type="hidden" name="image" value="<?= $escape($image) ?>"><button class="icon-button delete-update" type="submit" data-confirm="Delete this catalogue image permanently?" title="Delete image" aria-label="Delete <?= $escape(basename((string) $image)) ?>"<?= updates_writes_enabled() ? '' : ' disabled' ?>><i data-lucide="trash-2"></i></button></form></div>
-                                        </article><?php endforeach; ?>
-                                    </div>
                                 </div>
                             <?php endforeach; ?>
-                        </section>
+                                    </div>
+                                </details>
+                            <?php endforeach; ?>
+                            </div>
+                        </details>
                     <?php endforeach; ?>
-                <?php endforeach; ?>
+                    </div>
+                </details>
             <?php endforeach; ?>
         </div>
     </div>
