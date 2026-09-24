@@ -38,7 +38,27 @@ function catalogue_load(?string $file = null): array
         throw new RuntimeException('The tile catalogue must contain a brands array.');
     }
 
+    catalogue_sort($catalogue);
     return $catalogue;
+}
+
+function catalogue_sort(array &$catalogue): void
+{
+    $sortByName = static fn(array $left, array $right): int => strnatcasecmp((string) ($left['name'] ?? ''), (string) ($right['name'] ?? ''));
+    usort($catalogue['brands'], $sortByName);
+    foreach ($catalogue['brands'] as &$brand) {
+        $brand['ranges'] = is_array($brand['ranges'] ?? null) ? $brand['ranges'] : [];
+        usort($brand['ranges'], $sortByName);
+        foreach ($brand['ranges'] as &$range) {
+            $range['versions'] = is_array($range['versions'] ?? null) ? $range['versions'] : [];
+            usort($range['versions'], $sortByName);
+            foreach ($range['versions'] as &$version) {
+                $version['sizes'] = is_array($version['sizes'] ?? null) ? $version['sizes'] : [];
+                usort($version['sizes'], $sortByName);
+            }
+        }
+    }
+    unset($brand, $range, $version);
 }
 
 function catalogue_summary(array $catalogue): array
@@ -82,6 +102,7 @@ function catalogue_save(array $catalogue, ?string $file = null): void
         throw new RuntimeException('Catalogue writing is disabled.');
     }
 
+    catalogue_sort($catalogue);
     $path = $file ?? catalogue_file_path();
     $directory = dirname($path);
     if (!is_dir($directory) || !is_writable($directory)) {
