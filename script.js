@@ -26,9 +26,53 @@ document.addEventListener('keydown', event => {
 
 document.querySelectorAll('.delete-update').forEach(button => {
     button.addEventListener('click', event => {
-        if (!window.confirm('Delete this update permanently?')) event.preventDefault();
+        if (!window.confirm(button.dataset.confirm || 'Delete this update permanently?')) event.preventDefault();
     });
 });
+
+const catalogueModal = document.querySelector('[data-catalogue-modal]');
+if (catalogueModal) {
+    const editForm = catalogueModal.querySelector('[data-catalogue-edit-form]');
+    const imageList = catalogueModal.querySelector('[data-catalogue-edit-images]');
+
+    document.querySelectorAll('[data-catalogue-edit]').forEach(button => {
+        button.addEventListener('click', () => {
+            const entry = JSON.parse(button.dataset.catalogueEdit);
+            editForm.reset();
+            ['brand', 'range', 'version', 'size', 'width', 'height'].forEach(field => {
+                editForm.elements[field].value = entry[field];
+            });
+            ['brand', 'range', 'version', 'size'].forEach(field => {
+                editForm.elements[`original_${field}`].value = entry[`original_${field}`];
+            });
+
+            imageList.replaceChildren();
+            if (entry.images.length === 0) {
+                const empty = document.createElement('p');
+                empty.textContent = 'No images are currently attached.';
+                imageList.append(empty);
+            }
+            entry.images.forEach(image => {
+                const preview = document.createElement('span');
+                const thumbnail = document.createElement('img');
+                thumbnail.src = image.url;
+                thumbnail.alt = '';
+                const name = document.createElement('small');
+                name.textContent = image.name;
+                preview.append(thumbnail, name);
+                imageList.append(preview);
+            });
+            catalogueModal.showModal();
+        });
+    });
+
+    catalogueModal.querySelectorAll('[data-catalogue-modal-close]').forEach(button => {
+        button.addEventListener('click', () => catalogueModal.close());
+    });
+    catalogueModal.addEventListener('click', event => {
+        if (event.target === catalogueModal) catalogueModal.close();
+    });
+}
 
 const updateState = document.querySelector('#update-state');
 if (updateState) {

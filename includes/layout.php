@@ -53,6 +53,7 @@ function dashboard_header(string $title, string $active = 'dashboard', ?string $
                     <summary><span class="project-icon tile-icon"><i data-lucide="<?= htmlspecialchars($tileSettings['icon'], ENT_QUOTES, 'UTF-8') ?>"></i></span><span><strong><?= htmlspecialchars($tileSettings['title'], ENT_QUOTES, 'UTF-8') ?></strong><small><?= htmlspecialchars($tileSettings['domain'], ENT_QUOTES, 'UTF-8') ?></small></span><i class="chevron" data-lucide="chevron-down"></i></summary>
                     <div class="project-links">
                         <?= dashboard_nav_link('/tileimagegen/', 'house', 'Overview', $active === 'tile-overview') ?>
+                        <?= dashboard_nav_link('/tileimagegen/catalogue/', 'images', 'Catalogue', $active === 'tile-catalogue') ?>
                         <?= dashboard_nav_link('/tileimagegen/updates/', 'newspaper', 'Updates', $active === 'tile-updates') ?>
                         <?= dashboard_nav_link('/tileimagegen/feedback/', 'message-square-text', 'Feedback', $active === 'tile-feedback') ?>
                         <?= dashboard_nav_link('/tileimagegen/logs/', 'scroll-text', 'Logs', $active === 'tile-logs') ?>
