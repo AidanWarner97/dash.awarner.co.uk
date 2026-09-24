@@ -60,11 +60,18 @@ function feedback_management_ensure_tables(PDO $database): void
         feedback_id CHAR(64) NOT NULL,
         body TEXT NOT NULL,
         author VARCHAR(100) NOT NULL,
+        author_role VARCHAR(20) NOT NULL DEFAULT "end_user",
         created_at DATETIME NOT NULL,
         emailed_at DATETIME NULL,
         email_error VARCHAR(500) NULL,
         INDEX tig_feedback_responses_feedback_id (feedback_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    $roleColumn = $database->prepare('SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table_name AND COLUMN_NAME = "author_role"');
+    $roleColumn->execute([':table_name' => trim(project_database_table('tileimagegen', 'feedback_responses'), '`')]);
+    if ((int) $roleColumn->fetchColumn() === 0) {
+        $database->exec('ALTER TABLE ' . project_database_table('tileimagegen', 'feedback_responses') . ' ADD COLUMN author_role VARCHAR(20) NOT NULL DEFAULT "end_user" AFTER author');
+        $database->exec('UPDATE ' . project_database_table('tileimagegen', 'feedback_responses') . ' SET author_role = "admin" WHERE user_id IS NULL');
+    }
 }
 
 function feedback_management_tables_available(PDO $database): bool
@@ -139,7 +146,7 @@ function feedback_management_find(int $publicId): ?array
         $notes = $database->prepare('SELECT id, note, author, created_at FROM feedback_admin_notes WHERE feedback_id = :feedback_id ORDER BY created_at DESC, id DESC');
         $notes->execute([':feedback_id' => $entry['id']]);
         $entry['notes'] = $notes->fetchAll();
-        $responses = $database->prepare('SELECT id, body, author, created_at, emailed_at, email_error FROM ' . project_database_table('tileimagegen', 'feedback_responses') . ' WHERE feedback_id = :feedback_id ORDER BY created_at ASC, id ASC');
+        $responses = $database->prepare('SELECT id, body, author, author_role, created_at, emailed_at, email_error FROM ' . project_database_table('tileimagegen', 'feedback_responses') . ' WHERE feedback_id = :feedback_id ORDER BY created_at ASC, id ASC');
         $responses->execute([':feedback_id' => $entry['id']]);
         $entry['responses'] = $responses->fetchAll();
         $entry['email_replies'] = feedback_inbound_list((string) $entry['id']);
@@ -229,7 +236,7 @@ function feedback_management_add_public_response(int $publicId, string $body, st
     $now = date('Y-m-d H:i:s');
     $database->beginTransaction();
     try {
-        $statement = $database->prepare('INSERT INTO ' . project_database_table('tileimagegen', 'feedback_responses') . ' (feedback_id, body, author, created_at) VALUES (:feedback_id, :body, :author, :created_at)');
+        $statement = $database->prepare('INSERT INTO ' . project_database_table('tileimagegen', 'feedback_responses') . ' (feedback_id, body, author, author_role, created_at) VALUES (:feedback_id, :body, :author, "admin", :created_at)');
         $statement->execute([':feedback_id' => $entry['id'], ':body' => $body, ':author' => $actor, ':created_at' => $now]);
         $responseId = (int) $database->lastInsertId();
         feedback_management_audit($database, (string) $entry['id'], 'public_comment_added', null, null, $actor);
