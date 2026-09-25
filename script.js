@@ -74,6 +74,17 @@ if (catalogueModal) {
     });
 }
 
+const catalogueImportModal = document.querySelector('[data-catalogue-import-modal]');
+if (catalogueImportModal) {
+    document.querySelector('[data-catalogue-import-open]')?.addEventListener('click', () => catalogueImportModal.showModal());
+    catalogueImportModal.querySelectorAll('[data-catalogue-import-close]').forEach(button => {
+        button.addEventListener('click', () => catalogueImportModal.close());
+    });
+    catalogueImportModal.addEventListener('click', event => {
+        if (event.target === catalogueImportModal) catalogueImportModal.close();
+    });
+}
+
 const updateState = document.querySelector('#update-state');
 if (updateState) {
     const publishAtField = document.querySelector('#publish-at-field');

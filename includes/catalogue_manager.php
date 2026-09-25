@@ -203,6 +203,129 @@ function catalogue_upsert_size(array $input, array $uploads, ?string $file = nul
     return ['catalogue' => $catalogue, 'uploaded' => count($stored)];
 }
 
+function catalogue_import_csv_upload(array $upload, ?string $file = null): array
+{
+    if (!updates_writes_enabled()) {
+        throw new RuntimeException('Catalogue writing is disabled.');
+    }
+    if ((int) ($upload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        throw new InvalidArgumentException('Choose a CSV file to import.');
+    }
+    $path = (string) ($upload['tmp_name'] ?? '');
+    if (!is_uploaded_file($path) || (int) ($upload['size'] ?? 0) > 2 * 1024 * 1024) {
+        throw new InvalidArgumentException('The catalogue CSV must be a valid upload no larger than 2 MB.');
+    }
+
+    return catalogue_import_csv_file($path, $file);
+}
+
+function catalogue_import_csv_file(string $csvPath, ?string $file = null): array
+{
+    if (!updates_writes_enabled()) {
+        throw new RuntimeException('Catalogue writing is disabled.');
+    }
+    $handle = fopen($csvPath, 'rb');
+    if ($handle === false) {
+        throw new RuntimeException('The catalogue CSV could not be read.');
+    }
+
+    $requiredHeaders = ['brand', 'range', 'version', 'size', 'width', 'height'];
+    $rows = [];
+    try {
+        $headers = fgetcsv($handle, null, ',', '"', '');
+        if ($headers === false) {
+            throw new InvalidArgumentException('The catalogue CSV is empty.');
+        }
+        $headers = array_map(static function (mixed $header): string {
+            $value = catalogue_csv_text((string) $header);
+            return strtolower(preg_replace('/^\x{FEFF}/u', '', $value) ?? $value);
+        }, $headers);
+        if (count(array_unique($headers)) !== count($headers) || array_diff($requiredHeaders, $headers) !== []) {
+            throw new InvalidArgumentException('The CSV header must include brand, range, version, size, width, and height.');
+        }
+        $headerMap = array_flip($headers);
+
+        $line = 1;
+        while (($columns = fgetcsv($handle, null, ',', '"', '')) !== false) {
+            $line++;
+            if (count($columns) === 1 && trim((string) $columns[0]) === '') {
+                continue;
+            }
+            if (count($columns) !== count($headers)) {
+                throw new InvalidArgumentException("CSV row {$line} has the wrong number of columns.");
+            }
+
+            $row = [];
+            foreach ($requiredHeaders as $header) {
+                $row[$header] = catalogue_csv_text((string) $columns[$headerMap[$header]]);
+            }
+            foreach (['brand', 'range', 'version', 'size'] as $field) {
+                if ($row[$field] === '' || mb_strlen($row[$field]) > 100) {
+                    throw new InvalidArgumentException("CSV row {$line} has an invalid {$field} name.");
+                }
+                catalogue_slug($row[$field]);
+            }
+            foreach (['width', 'height'] as $field) {
+                $value = filter_var($row[$field], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 10000]]);
+                if ($value === false) {
+                    throw new InvalidArgumentException("CSV row {$line} has an invalid {$field}; use a whole number from 1 to 10,000.");
+                }
+                $row[$field] = $value;
+            }
+            $rows[] = $row;
+            if (count($rows) > 500) {
+                throw new InvalidArgumentException('Import no more than 500 catalogue rows at once.');
+            }
+        }
+    } finally {
+        fclose($handle);
+    }
+    if ($rows === []) {
+        throw new InvalidArgumentException('The catalogue CSV contains no entries.');
+    }
+
+    $catalogue = catalogue_load($file);
+    $created = 0;
+    $updated = 0;
+    foreach ($rows as $row) {
+        $ids = [];
+        foreach (['brand', 'range', 'version', 'size'] as $field) {
+            $ids[$field] = catalogue_slug((string) $row[$field]);
+        }
+        $brandIndex = catalogue_find_or_add($catalogue['brands'], $ids['brand'], $row['brand'], 'ranges');
+        $rangeIndex = catalogue_find_or_add($catalogue['brands'][$brandIndex]['ranges'], $ids['range'], $row['range'], 'versions');
+        $versionIndex = catalogue_find_or_add($catalogue['brands'][$brandIndex]['ranges'][$rangeIndex]['versions'], $ids['version'], $row['version'], 'sizes');
+        $sizes =& $catalogue['brands'][$brandIndex]['ranges'][$rangeIndex]['versions'][$versionIndex]['sizes'];
+        $existing = false;
+        foreach ($sizes as $size) {
+            if (($size['id'] ?? '') === $ids['size']) {
+                $existing = true;
+                break;
+            }
+        }
+        $sizeIndex = catalogue_find_or_add($sizes, $ids['size'], $row['size'], 'images');
+        $sizes[$sizeIndex]['width'] = $row['width'];
+        $sizes[$sizeIndex]['height'] = $row['height'];
+        $existing ? $updated++ : $created++;
+        unset($sizes);
+    }
+
+    catalogue_save($catalogue, $file);
+    return ['rows' => count($rows), 'created' => $created, 'updated' => $updated];
+}
+
+function catalogue_csv_text(string $value): string
+{
+    if (!mb_check_encoding($value, 'UTF-8')) {
+        $value = mb_convert_encoding($value, 'UTF-8', 'Windows-1252');
+    }
+    if (!mb_check_encoding($value, 'UTF-8')) {
+        throw new InvalidArgumentException('The CSV contains text that could not be converted to UTF-8.');
+    }
+
+    return trim($value);
+}
+
 function catalogue_extract_size(array &$catalogue, array $ids): array
 {
     foreach ($catalogue['brands'] as $brandIndex => $brand) {

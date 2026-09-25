@@ -347,6 +347,14 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
 .catalogue-replace strong, .catalogue-replace small { display: block; }
 .catalogue-replace strong { color: var(--text); font-size: 0.65rem; }
 .catalogue-modal-actions { display: flex; justify-content: flex-end; gap: 0.65rem; padding: 0 1.2rem 1.2rem; }
+.catalogue-import-content { display: grid; gap: 1rem; padding: 1.2rem; }
+.catalogue-import-content > p { margin: 0; color: var(--muted); font-size: 0.68rem; line-height: 1.6; }
+.catalogue-import-content > label { display: grid; gap: 0.4rem; color: var(--muted); font-size: 0.68rem; font-weight: 700; }
+.catalogue-import-content input { width: 100%; min-height: 2.75rem; padding: 0.7rem; border: 2px solid var(--line); border-radius: var(--radius); color: var(--text); background: var(--base); }
+.catalogue-import-content label small { font-size: 0.58rem; font-weight: 500; line-height: 1.5; }
+.catalogue-import-content .text-button { justify-self: start; }
+.catalogue-csv-columns { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.catalogue-csv-columns code { padding: 0.3rem 0.45rem; border: 1px solid var(--line); border-radius: 0.25rem; color: var(--accent); background: var(--base); font-size: 0.6rem; }
 .database-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 1rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
 .database-summary span { min-width: 0; padding: 1rem 1.2rem; border-right: 1px solid var(--line); }
 .database-summary span:last-child { border-right: 0; }

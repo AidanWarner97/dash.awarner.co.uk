@@ -9,6 +9,14 @@ updates_start_session();
 $escape = static fn(mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 $error = null;
 
+if (isset($_GET['csv-template'])) {
+    header('Content-Type: text/csv; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="catalogue-import-template.csv"');
+    echo "brand,range,version,size,width,height\r\n";
+    echo "Easy Bathrooms,Charlie,Blue,1200 x 600,1200,600\r\n";
+    exit;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         if (!updates_verify_csrf((string) ($_POST['csrf_token'] ?? ''))) {
@@ -19,6 +27,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         if ($action === 'delete-image') {
             catalogue_delete_image((string) ($_POST['image'] ?? ''));
             header('Location: /tileimagegen/catalogue/?deleted=1');
+            exit;
+        }
+        if ($action === 'import-csv') {
+            $result = catalogue_import_csv_upload($_FILES['catalogue_csv'] ?? []);
+            header('Location: /tileimagegen/catalogue/?imported=1&rows=' . $result['rows'] . '&created=' . $result['created'] . '&updated=' . $result['updated']);
             exit;
         }
 
@@ -49,9 +62,10 @@ dashboard_header($settings['title'] . ': Catalogue', 'tile-catalogue', 'tileimag
 <section class="view active">
     <div class="section-title project-title">
         <span><small><?= $escape(strtoupper($settings['domain'])) ?></small><h1>IMAGE CATALOGUE</h1></span>
-        <a class="secondary-button" href="https://<?= $escape($settings['domain']) ?>" target="_blank" rel="noreferrer"><i data-lucide="external-link"></i>Open generator</a>
+        <div class="title-actions"><button class="primary-button" type="button" data-catalogue-import-open><i data-lucide="file-up"></i>Bulk import</button><a class="secondary-button" href="https://<?= $escape($settings['domain']) ?>" target="_blank" rel="noreferrer"><i data-lucide="external-link"></i>Open generator</a></div>
     </div>
     <?php if (isset($_GET['saved'])): ?><div class="flash success"><i data-lucide="circle-check"></i>Catalogue entry saved<?= ((int) ($_GET['uploaded'] ?? 0)) > 0 ? ' with ' . (int) $_GET['uploaded'] . ' new image(s)' : '' ?>.</div><?php endif; ?>
+    <?php if (isset($_GET['imported'])): ?><div class="flash success"><i data-lucide="circle-check"></i>Imported <?= (int) ($_GET['rows'] ?? 0) ?> catalogue row(s): <?= (int) ($_GET['created'] ?? 0) ?> created and <?= (int) ($_GET['updated'] ?? 0) ?> updated.</div><?php endif; ?>
     <?php if (isset($_GET['deleted'])): ?><div class="flash success"><i data-lucide="circle-check"></i>Catalogue image deleted.</div><?php endif; ?>
     <?php if ($error !== null): ?><div class="flash error"><i data-lucide="circle-alert"></i><?= $escape($error) ?></div><?php endif; ?>
     <?php if (!updates_writes_enabled()): ?><div class="data-notice"><i data-lucide="lock-keyhole"></i><div><strong>Catalogue writing is disabled</strong><p>Enable authenticated dashboard writes before changing catalogue data.</p></div></div><?php endif; ?>
@@ -136,6 +150,20 @@ dashboard_header($settings['title'] . ': Catalogue', 'tile-catalogue', 'tileimag
                 <label class="catalogue-replace"><input type="checkbox" name="replace_images" value="1"><span><strong>Replace existing images</strong><small>Requires at least one new image. Existing files will be deleted after the catalogue saves.</small></span></label>
             </div>
             <div class="catalogue-modal-actions"><button class="secondary-button" type="button" data-catalogue-modal-close>Cancel</button><button class="primary-button" type="submit"<?= updates_writes_enabled() ? '' : ' disabled' ?>><i data-lucide="save"></i>Save changes</button></div>
+        </form>
+    </dialog>
+    <dialog class="catalogue-modal catalogue-import-modal" data-catalogue-import-modal>
+        <form method="post" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="<?= $escape(updates_csrf_token()) ?>">
+            <input type="hidden" name="action" value="import-csv">
+            <div class="catalogue-modal-heading"><div><small>BULK CATALOGUE</small><h2>IMPORT CSV</h2></div><button class="icon-button" type="button" data-catalogue-import-close aria-label="Close import dialog"><i data-lucide="x"></i></button></div>
+            <div class="catalogue-import-content">
+                <p>Each row creates or updates one size. Existing images are kept, ready for upload from the entry's Edit dialog.</p>
+                <div class="catalogue-csv-columns"><code>brand</code><code>range</code><code>version</code><code>size</code><code>width</code><code>height</code></div>
+                <label>CSV file<input type="file" name="catalogue_csv" accept=".csv,text/csv" required><small>UTF-8 CSV with a header row. Maximum 500 entries and 2 MB.</small></label>
+                <a class="text-button" href="/tileimagegen/catalogue/?csv-template=1"><i data-lucide="download"></i>Download CSV template</a>
+            </div>
+            <div class="catalogue-modal-actions"><button class="secondary-button" type="button" data-catalogue-import-close>Cancel</button><button class="primary-button" type="submit"<?= updates_writes_enabled() ? '' : ' disabled' ?>><i data-lucide="file-up"></i>Import entries</button></div>
         </form>
     </dialog>
 </section>
