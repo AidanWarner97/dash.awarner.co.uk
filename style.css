@@ -295,6 +295,22 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
 .connection-state.error i { background: #f38ba8; }
 .settings-actions { display: flex; grid-column: 1 / -1; justify-content: flex-end; }
 .settings-fields label small { color: var(--muted); font-size: 0.58rem; font-weight: 500; line-height: 1.5; }
+.catalogue-storage-status { margin-bottom: 1rem; padding: 1rem 1.2rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+.catalogue-storage-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.catalogue-storage-heading small, .catalogue-storage-heading strong { display: block; }
+.catalogue-storage-heading small { margin-bottom: 0.25rem; color: var(--accent); font-size: 0.56rem; font-weight: 700; }
+.catalogue-storage-heading strong { font-size: 0.82rem; }
+.catalogue-storage-heading > span { color: var(--muted); font-size: 0.62rem; font-weight: 700; }
+.catalogue-storage-heading > span[data-state="active"] { color: var(--accent); }
+.catalogue-storage-heading > span[data-state="complete"] { color: var(--success); }
+.catalogue-storage-heading > span[data-state="error"] { color: #f38ba8; }
+.catalogue-storage-progress { height: 0.45rem; margin: 0.85rem 0; overflow: hidden; border-radius: 0.2rem; background: var(--base); }
+.catalogue-storage-progress i { display: block; width: 0; height: 100%; background: var(--accent); transition: width 300ms ease; }
+.catalogue-storage-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; }
+.catalogue-storage-metrics small, .catalogue-storage-metrics strong { display: block; }
+.catalogue-storage-metrics small { margin-bottom: 0.2rem; color: var(--muted); font-size: 0.52rem; font-weight: 700; }
+.catalogue-storage-metrics strong { font-size: 0.76rem; }
+.catalogue-storage-status > p { margin: 0.75rem 0 0; color: var(--muted); font-size: 0.56rem; }
 .catalogue-summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin-bottom: 1rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
 .catalogue-summary span { min-width: 0; padding: 1rem 1.2rem; border-right: 1px solid var(--line); }
 .catalogue-summary span:last-child { border-right: 0; }
@@ -303,6 +319,7 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
 .catalogue-summary strong { font-size: 1.1rem; }
 .catalogue-layout { display: grid; grid-template-columns: minmax(17rem, 0.34fr) minmax(0, 1fr); gap: 1rem; align-items: start; }
 .catalogue-editor, .catalogue-manager { min-width: 0; min-height: 0; padding: 0; }
+.catalogue-refresh-state { color: var(--muted); font-size: 0.56rem; font-weight: 700; }
 .catalogue-editor > .card-heading > svg { width: 1.1rem; color: var(--accent); }
 .catalogue-add-fields { grid-template-columns: 1fr; }
 .catalogue-add-fields .wide { grid-column: auto; }
@@ -504,6 +521,7 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
     .settings-fields { grid-template-columns: 1fr; padding: 1rem; }
     .settings-fields .wide { grid-column: auto; }
     .settings-actions .primary-button { width: 100%; }
+    .catalogue-storage-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .catalogue-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .catalogue-summary span { border-bottom: 1px solid var(--line); }
     .catalogue-summary span:nth-child(2n) { border-right: 0; }

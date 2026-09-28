@@ -10,6 +10,9 @@ $escape = static fn(mixed $value): string => htmlspecialchars((string) $value, E
 $error = null;
 $settings = project_settings('tileimagegen');
 $imageUrl = static function (string $path) use ($settings): string {
+    if (bunny_storage_enabled()) {
+        return bunny_storage_url($path);
+    }
     return 'https://' . $settings['domain'] . '/' . implode('/', array_map('rawurlencode', explode('/', $path)));
 };
 $ajaxRequest = strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
@@ -76,14 +79,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 }
 
-try {
-    $catalogue = catalogue_load();
-    $summary = catalogue_summary($catalogue);
-} catch (Throwable $exception) {
-    $catalogue = ['brands' => []];
-    $summary = ['brands' => 0, 'ranges' => 0, 'versions' => 0, 'sizes' => 0, 'images' => 0];
-    $error ??= $exception->getMessage();
-}
+$summary = ['brands' => 0, 'ranges' => 0, 'versions' => 0, 'sizes' => 0, 'images' => 0];
 
 dashboard_header($settings['title'] . ': Catalogue', 'tile-catalogue', 'tileimagegen');
 ?>
@@ -98,6 +94,18 @@ dashboard_header($settings['title'] . ': Catalogue', 'tile-catalogue', 'tileimag
     <?php if (isset($_GET['deleted-size'])): ?><div class="flash success"><i data-lucide="circle-check"></i>Catalogue entry deleted.</div><?php endif; ?>
     <?php if ($error !== null): ?><div class="flash error"><i data-lucide="circle-alert"></i><?= $escape($error) ?></div><?php endif; ?>
     <?php if (!updates_writes_enabled()): ?><div class="data-notice"><i data-lucide="lock-keyhole"></i><div><strong>Catalogue writing is disabled</strong><p>Enable authenticated dashboard writes before changing catalogue data.</p></div></div><?php endif; ?>
+
+    <section class="catalogue-storage-status" data-catalogue-storage-status data-endpoint="/api/tileimagegen/catalogue.php">
+        <div class="catalogue-storage-heading"><div><small>CDN MIGRATION</small><strong>Bunny Storage</strong></div><span data-storage-state>Checking</span></div>
+        <div class="catalogue-storage-progress" role="progressbar" aria-label="Bunny Storage migration" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i data-storage-progress></i></div>
+        <div class="catalogue-storage-metrics">
+            <span><small>VERIFIED</small><strong data-storage-ready>—</strong></span>
+            <span><small>PENDING</small><strong data-storage-pending>—</strong></span>
+            <span><small>ERRORS</small><strong data-storage-errors>—</strong></span>
+            <span><small>UPLOADED</small><strong data-storage-bytes>—</strong></span>
+        </div>
+        <p data-storage-updated>Loading migration status…</p>
+    </section>
 
     <div class="catalogue-summary" aria-label="Catalogue totals">
         <?php foreach ($summary as $label => $total): ?><span><small><?= $escape(strtoupper($label)) ?></small><strong data-catalogue-total="<?= $escape($label) ?>"><?= (int) $total ?></strong></span><?php endforeach; ?>
@@ -119,46 +127,11 @@ dashboard_header($settings['title'] . ': Catalogue', 'tile-catalogue', 'tileimag
             </div>
             <div class="catalogue-actions"><button class="primary-button" type="submit"<?= updates_writes_enabled() ? '' : ' disabled' ?>><i data-lucide="save"></i>Save entry</button></div>
         </form>
-        <datalist id="catalogue-brands"><?php foreach ($catalogue['brands'] as $brand): ?><option value="<?= $escape($brand['name'] ?? '') ?>"><?php endforeach; ?></datalist>
+        <datalist id="catalogue-brands" data-catalogue-brands></datalist>
 
-        <div class="content-card catalogue-manager">
-            <div class="card-heading"><div><small><?= (int) $summary['sizes'] ?> SIZES</small><h2>PREDEFINED IMAGES</h2></div></div>
-            <?php if ($summary['sizes'] === 0): ?><div class="list-message">No catalogue sizes have been added.</div><?php endif; ?>
-            <?php foreach ($catalogue['brands'] as $brandIndex => $brand): ?>
-                <?php $brandRangeCount = count($brand['ranges'] ?? []); ?>
-                <details class="catalogue-accordion catalogue-brand"<?= $brandIndex === 0 ? ' open' : '' ?>>
-                    <summary><span class="catalogue-accordion-icon"><i data-lucide="building-2"></i></span><span><strong><?= $escape($brand['name'] ?? '') ?></strong><small><?= $brandRangeCount ?> range(s)</small></span><i class="catalogue-chevron" data-lucide="chevron-down"></i></summary>
-                    <div class="catalogue-accordion-content">
-                    <?php foreach (($brand['ranges'] ?? []) as $range): ?>
-                        <?php $rangeVersionCount = count($range['versions'] ?? []); ?>
-                        <details class="catalogue-accordion catalogue-range">
-                            <summary><span class="catalogue-accordion-icon"><i data-lucide="layers-3"></i></span><span><strong><?= $escape($range['name'] ?? '') ?></strong><small><?= $rangeVersionCount ?> version(s)</small></span><i class="catalogue-chevron" data-lucide="chevron-down"></i></summary>
-                            <div class="catalogue-accordion-content">
-                            <?php foreach (($range['versions'] ?? []) as $version): ?>
-                                <?php $versionSizeCount = count($version['sizes'] ?? []); ?>
-                                <details class="catalogue-accordion catalogue-version">
-                                    <summary><span class="catalogue-accordion-icon"><i data-lucide="swatch-book"></i></span><span><strong><?= $escape($version['name'] ?? '') ?></strong><small><?= $versionSizeCount ?> size(s)</small></span><i class="catalogue-chevron" data-lucide="chevron-down"></i></summary>
-                                    <div class="catalogue-sizes">
-                            <?php foreach (($version['sizes'] ?? []) as $size): ?>
-                                <?php $editData = [
-                                    'original_brand' => $brand['id'] ?? '', 'original_range' => $range['id'] ?? '', 'original_version' => $version['id'] ?? '', 'original_size' => $size['id'] ?? '',
-                                    'brand' => $brand['name'] ?? '', 'range' => $range['name'] ?? '', 'version' => $version['name'] ?? '', 'size' => $size['name'] ?? '',
-                                    'width' => $size['width'] ?? '', 'height' => $size['height'] ?? '',
-                                    'images' => array_map(static fn(string $path): array => ['name' => basename($path), 'url' => $imageUrl($path)], $size['images'] ?? []),
-                                ]; ?>
-                                <div class="catalogue-size">
-                                    <div class="catalogue-size-heading"><div><strong data-catalogue-size-name><?= $escape($size['name'] ?? '') ?></strong><small data-catalogue-size-dimensions><?= (int) ($size['width'] ?? 0) ?> × <?= (int) ($size['height'] ?? 0) ?> px</small></div><div class="catalogue-size-controls"><span data-catalogue-image-count><?= count($size['images'] ?? []) ?> image(s)</span><button class="icon-button" type="button" data-catalogue-edit="<?= $escape(json_encode($editData, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)) ?>" title="Edit entry" aria-label="Edit <?= $escape($size['name'] ?? '') ?>"><i data-lucide="pencil"></i></button><form method="post" data-catalogue-delete><input type="hidden" name="csrf_token" value="<?= $escape(updates_csrf_token()) ?>"><input type="hidden" name="action" value="delete-size"><?php foreach (['brand', 'range', 'version', 'size'] as $field): ?><input type="hidden" name="<?= $field ?>" value="<?= $escape($editData['original_' . $field]) ?>"><?php endforeach; ?><button class="icon-button catalogue-delete-button" type="submit" title="Delete entry" aria-label="Delete <?= $escape($size['name'] ?? '') ?>"<?= updates_writes_enabled() ? '' : ' disabled' ?>><i data-lucide="trash-2"></i></button></form></div></div>
-                                </div>
-                            <?php endforeach; ?>
-                                    </div>
-                                </details>
-                            <?php endforeach; ?>
-                            </div>
-                        </details>
-                    <?php endforeach; ?>
-                    </div>
-                </details>
-            <?php endforeach; ?>
+        <div class="content-card catalogue-manager" data-catalogue-manager data-endpoint="/api/tileimagegen/catalogue.php" data-csrf-token="<?= $escape(updates_csrf_token()) ?>" data-writes-enabled="<?= updates_writes_enabled() ? '1' : '0' ?>">
+            <div class="card-heading"><div><small data-catalogue-manager-count>LOADING</small><h2>PREDEFINED IMAGES</h2></div><span class="catalogue-refresh-state" data-catalogue-refresh-state>Loading…</span></div>
+            <div class="list-message" data-catalogue-list>Loading catalogue…</div>
         </div>
     </div>
     <dialog class="catalogue-modal" data-catalogue-modal>

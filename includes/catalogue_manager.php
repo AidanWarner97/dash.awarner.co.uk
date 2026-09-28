@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/project_settings.php';
+require_once __DIR__ . '/catalogue_database.php';
 
 function catalogue_project_root(): string
 {
@@ -22,6 +23,14 @@ function catalogue_file_path(): string
 
 function catalogue_load(?string $file = null): array
 {
+    if ($file === null && project_settings('tileimagegen')['db_dsn'] !== '') {
+        $databaseCatalogue = catalogue_database_load();
+        if ($databaseCatalogue !== null) {
+            catalogue_sort($databaseCatalogue);
+            return $databaseCatalogue;
+        }
+    }
+
     $path = $file ?? catalogue_file_path();
     $contents = is_file($path) ? file_get_contents($path) : false;
     if ($contents === false) {
@@ -109,6 +118,11 @@ function catalogue_save(array $catalogue, ?string $file = null): void
         throw new RuntimeException('The catalogue directory is not writable.');
     }
 
+    $previousExists = is_file($path);
+    $previousJson = $previousExists ? file_get_contents($path) : false;
+    if ($previousExists && $previousJson === false) {
+        throw new RuntimeException('The existing tile catalogue could not be read before saving.');
+    }
     $json = json_encode($catalogue, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . PHP_EOL;
     $temporary = tempnam($directory, '.tiles-');
     if ($temporary === false) {
@@ -123,6 +137,23 @@ function catalogue_save(array $catalogue, ?string $file = null): void
         if (is_file($temporary)) {
             @unlink($temporary);
         }
+    }
+
+    try {
+        if ($file === null && project_settings('tileimagegen')['db_dsn'] !== '') {
+            catalogue_database_save($catalogue);
+        }
+    } catch (Throwable $exception) {
+        $rollback = tempnam($directory, '.tiles-rollback-');
+        if (!$previousExists) {
+            @unlink($path);
+        } elseif ($rollback === false || file_put_contents($rollback, $previousJson, LOCK_EX) === false || !rename($rollback, $path)) {
+            if ($rollback !== false) {
+                @unlink($rollback);
+            }
+            throw new RuntimeException('The catalogue database update failed and the JSON rollback also failed.', 0, $exception);
+        }
+        throw $exception;
     }
 }
 
@@ -190,7 +221,10 @@ function catalogue_upsert_size(array $input, array $uploads, ?string $file = nul
         catalogue_save($catalogue, $file);
     } catch (Throwable $exception) {
         foreach ($stored as $relativePath) {
-            @unlink($root . '/' . $relativePath);
+            try {
+                catalogue_delete_stored_file($root, $relativePath);
+            } catch (Throwable) {
+            }
         }
         throw $exception;
     }
@@ -458,19 +492,36 @@ function catalogue_store_uploads(array $uploads, string $destination, string $pr
                 throw new InvalidArgumentException('Catalogue images must be JPEG, PNG, or WebP files.');
             }
 
-            if (!is_dir($destination) && !mkdir($destination, 0775, true) && !is_dir($destination)) {
-                throw new RuntimeException('The catalogue image directory could not be created.');
-            }
             $baseName = catalogue_slug(pathinfo((string) $originalName, PATHINFO_FILENAME));
             $target = $destination . '/' . $baseName . '-' . bin2hex(random_bytes(4)) . '.' . $mimeExtensions[$mime];
-            if (!move_uploaded_file($temporaryFile, $target)) {
-                throw new RuntimeException('A catalogue image could not be stored.');
+            $objectKey = ltrim(str_replace('\\', '/', substr($target, strlen(rtrim($projectRoot, DIRECTORY_SEPARATOR)))), '/');
+            if (bunny_storage_enabled()) {
+                bunny_storage_upload($temporaryFile, $objectKey);
+                $stored[] = $objectKey;
+                catalogue_database_mark_asset(
+                    $objectKey,
+                    'ready',
+                    (int) filesize($temporaryFile),
+                    hash_file('sha256', $temporaryFile) ?: null
+                );
+            } else {
+                if (!is_dir($destination) && !mkdir($destination, 0775, true) && !is_dir($destination)) {
+                    throw new RuntimeException('The catalogue image directory could not be created.');
+                }
+                if (!move_uploaded_file($temporaryFile, $target)) {
+                    throw new RuntimeException('A catalogue image could not be stored.');
+                }
             }
-            $stored[] = ltrim(str_replace('\\', '/', substr($target, strlen(rtrim($projectRoot, DIRECTORY_SEPARATOR)))), '/');
+            if (!in_array($objectKey, $stored, true)) {
+                $stored[] = $objectKey;
+            }
         }
     } catch (Throwable $exception) {
         foreach ($stored as $relativePath) {
-            @unlink($projectRoot . '/' . $relativePath);
+            try {
+                catalogue_delete_stored_file($projectRoot, $relativePath);
+            } catch (Throwable) {
+            }
         }
         throw $exception;
     }
@@ -516,6 +567,10 @@ function catalogue_delete_stored_file(string $projectRoot, string $imagePath): v
 {
     if (!str_starts_with($imagePath, 'catalogue/images/') || str_contains($imagePath, '..')) {
         throw new InvalidArgumentException('The catalogue image path is invalid.');
+    }
+    if (bunny_storage_enabled()) {
+        bunny_storage_delete($imagePath);
+        catalogue_database_mark_asset($imagePath, 'deleted');
     }
     $absolutePath = $projectRoot . '/' . $imagePath;
     if (is_file($absolutePath) && !unlink($absolutePath)) {

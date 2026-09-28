@@ -30,6 +30,206 @@ document.querySelectorAll('.delete-update').forEach(button => {
     });
 });
 
+const catalogueManager = document.querySelector('[data-catalogue-manager]');
+let refreshCatalogue = async () => {};
+if (catalogueManager) {
+    const endpoint = catalogueManager.dataset.endpoint;
+    const list = catalogueManager.querySelector('[data-catalogue-list]');
+    const refreshState = catalogueManager.querySelector('[data-catalogue-refresh-state]');
+    const managerCount = catalogueManager.querySelector('[data-catalogue-manager-count]');
+    const brandOptions = document.querySelector('[data-catalogue-brands]');
+    const writesEnabled = catalogueManager.dataset.writesEnabled === '1';
+    let currentRevision = null;
+    let imageBaseUrl = '';
+
+    const makeElement = (tag, className, text) => {
+        const element = document.createElement(tag);
+        if (className) element.className = className;
+        if (text !== undefined) element.textContent = text;
+        return element;
+    };
+    const makeIcon = name => {
+        const icon = document.createElement('i');
+        icon.dataset.lucide = name;
+        return icon;
+    };
+    const imageUrl = path => imageBaseUrl + path.split('/').map(encodeURIComponent).join('/');
+    const makeAccordion = (kind, item, iconName, childLabel, renderChildren) => {
+        const details = makeElement('details', `catalogue-accordion catalogue-${kind}`);
+        const summary = document.createElement('summary');
+        const icon = makeElement('span', 'catalogue-accordion-icon');
+        icon.append(makeIcon(iconName));
+        const labels = document.createElement('span');
+        labels.append(makeElement('strong', '', item.name || ''), makeElement('small', '', childLabel));
+        const chevron = makeIcon('chevron-down');
+        chevron.className = 'catalogue-chevron';
+        summary.append(icon, labels, chevron);
+        const content = makeElement('div', kind === 'version' ? 'catalogue-sizes' : 'catalogue-accordion-content');
+        details.append(summary, content);
+        details.addEventListener('toggle', () => {
+            if (!details.open || details.dataset.rendered === '1') return;
+            details.dataset.rendered = '1';
+            renderChildren(content);
+            refreshIcons();
+        });
+        return details;
+    };
+    const appendHidden = (form, name, value) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        form.append(input);
+    };
+    const makeSize = (brand, range, version, size) => {
+        const row = makeElement('div', 'catalogue-size');
+        const heading = makeElement('div', 'catalogue-size-heading');
+        const labels = document.createElement('div');
+        const name = makeElement('strong', '', size.name || '');
+        name.dataset.catalogueSizeName = '';
+        const dimensions = makeElement('small', '', `${Number(size.width) || 0} × ${Number(size.height) || 0} px`);
+        dimensions.dataset.catalogueSizeDimensions = '';
+        labels.append(name, dimensions);
+
+        const controls = makeElement('div', 'catalogue-size-controls');
+        const imageCount = makeElement('span', '', `${(size.images || []).length} image(s)`);
+        imageCount.dataset.catalogueImageCount = '';
+        const entry = {
+            original_brand: brand.id, original_range: range.id, original_version: version.id, original_size: size.id,
+            brand: brand.name, range: range.name, version: version.name, size: size.name,
+            width: size.width, height: size.height,
+            images: (size.images || []).map(path => ({ name: path.split('/').pop(), url: imageUrl(path) })),
+        };
+        const edit = makeElement('button', 'icon-button');
+        edit.type = 'button';
+        edit.dataset.catalogueEdit = JSON.stringify(entry);
+        edit.title = 'Edit entry';
+        edit.setAttribute('aria-label', `Edit ${size.name || ''}`);
+        edit.append(makeIcon('pencil'));
+
+        const deleteForm = document.createElement('form');
+        deleteForm.method = 'post';
+        deleteForm.dataset.catalogueDelete = '';
+        appendHidden(deleteForm, 'csrf_token', catalogueManager.dataset.csrfToken);
+        appendHidden(deleteForm, 'action', 'delete-size');
+        appendHidden(deleteForm, 'brand', brand.id);
+        appendHidden(deleteForm, 'range', range.id);
+        appendHidden(deleteForm, 'version', version.id);
+        appendHidden(deleteForm, 'size', size.id);
+        const remove = makeElement('button', 'icon-button catalogue-delete-button');
+        remove.type = 'submit';
+        remove.title = 'Delete entry';
+        remove.setAttribute('aria-label', `Delete ${size.name || ''}`);
+        remove.disabled = !writesEnabled;
+        remove.append(makeIcon('trash-2'));
+        deleteForm.append(remove);
+        controls.append(imageCount, edit, deleteForm);
+        heading.append(labels, controls);
+        row.append(heading);
+        return row;
+    };
+    const makeVersion = (brand, range, version) => makeAccordion(
+        'version', version, 'swatch-book', `${(version.sizes || []).length} size(s)`,
+        content => content.append(...(version.sizes || []).map(size => makeSize(brand, range, version, size)))
+    );
+    const makeRange = (brand, range) => makeAccordion(
+        'range', range, 'layers-3', `${(range.versions || []).length} version(s)`,
+        content => content.append(...(range.versions || []).map(version => makeVersion(brand, range, version)))
+    );
+    const makeBrand = brand => makeAccordion(
+        'brand', brand, 'building-2', `${(brand.ranges || []).length} range(s)`,
+        content => content.append(...(brand.ranges || []).map(range => makeRange(brand, range)))
+    );
+    const renderCatalogue = result => {
+        imageBaseUrl = result.image_base_url;
+        Object.entries(result.summary).forEach(([key, total]) => {
+            const target = document.querySelector(`[data-catalogue-total="${key}"]`);
+            if (target) target.textContent = total.toLocaleString();
+        });
+        managerCount.textContent = `${result.summary.sizes.toLocaleString()} SIZES`;
+        brandOptions.replaceChildren(...result.catalogue.brands.map(brand => {
+            const option = document.createElement('option');
+            option.value = brand.name;
+            return option;
+        }));
+        list.className = 'catalogue-list';
+        list.replaceChildren(...result.catalogue.brands.map(makeBrand));
+        if (result.catalogue.brands.length === 0) {
+            list.className = 'list-message';
+            list.textContent = 'No catalogue sizes have been added.';
+        }
+        refreshIcons();
+    };
+
+    refreshCatalogue = async (force = false) => {
+        refreshState.textContent = 'Refreshing…';
+        try {
+            const response = await fetch(`${endpoint}?view=catalogue`, {
+                headers: { 'Accept': 'application/json' },
+                cache: force ? 'no-cache' : 'default',
+            });
+            const result = await response.json().catch(() => ({ error: 'The catalogue response was invalid.' }));
+            if (!response.ok || !result.ok) throw new Error(result.error || 'The catalogue could not be loaded.');
+            if (result.revision !== currentRevision) {
+                renderCatalogue(result);
+                currentRevision = result.revision;
+            }
+            refreshState.textContent = 'Up to date';
+        } catch (error) {
+            refreshState.textContent = 'Refresh failed';
+            if (currentRevision === null) {
+                list.className = 'list-message';
+                list.textContent = error instanceof Error ? error.message : 'The catalogue could not be loaded.';
+            }
+        }
+    };
+    refreshCatalogue();
+    window.setInterval(() => {
+        if (!document.hidden) refreshCatalogue(true);
+    }, 60000);
+}
+
+const storageStatus = document.querySelector('[data-catalogue-storage-status]');
+if (storageStatus) {
+    const formatBytes = bytes => {
+        if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const unit = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+        return `${(bytes / (1024 ** unit)).toFixed(unit > 1 ? 1 : 0)} ${units[unit]}`;
+    };
+    const pollStorage = async () => {
+        try {
+            const response = await fetch(`${storageStatus.dataset.endpoint}?view=status`, {
+                headers: { 'Accept': 'application/json' }, cache: 'no-store',
+            });
+            const result = await response.json();
+            if (!response.ok || !result.ok) throw new Error(result.error || 'Status unavailable');
+            const status = result.storage;
+            storageStatus.querySelector('[data-storage-ready]').textContent = status.ready.toLocaleString();
+            storageStatus.querySelector('[data-storage-pending]').textContent = status.pending.toLocaleString();
+            storageStatus.querySelector('[data-storage-errors]').textContent = status.errors.toLocaleString();
+            storageStatus.querySelector('[data-storage-bytes]').textContent = formatBytes(status.ready_bytes);
+            const state = status.errors > 0 ? 'Needs attention' : status.pending > 0 ? 'Migrating' : 'Complete';
+            const stateElement = storageStatus.querySelector('[data-storage-state]');
+            stateElement.textContent = `${state} · ${status.percent.toFixed(1)}%`;
+            stateElement.dataset.state = status.errors > 0 ? 'error' : status.pending > 0 ? 'active' : 'complete';
+            const progress = storageStatus.querySelector('.catalogue-storage-progress');
+            progress.setAttribute('aria-valuenow', status.percent);
+            storageStatus.querySelector('[data-storage-progress]').style.width = `${status.percent}%`;
+            const updated = status.updated_at ? new Date(`${status.updated_at.replace(' ', 'T')}Z`) : null;
+            storageStatus.querySelector('[data-storage-updated]').textContent = updated && !Number.isNaN(updated.valueOf())
+                ? `Last migration update ${updated.toLocaleString()}`
+                : 'Waiting for migration activity…';
+        } catch {
+            storageStatus.querySelector('[data-storage-state]').textContent = 'Status unavailable';
+        }
+    };
+    pollStorage();
+    window.setInterval(() => {
+        if (!document.hidden) pollStorage();
+    }, 3000);
+}
+
 const catalogueModal = document.querySelector('[data-catalogue-modal]');
 if (catalogueModal) {
     const editForm = catalogueModal.querySelector('[data-catalogue-edit-form]');
@@ -56,23 +256,23 @@ if (catalogueModal) {
         });
     };
 
-    document.querySelectorAll('[data-catalogue-edit]').forEach(button => {
-        button.addEventListener('click', () => {
-            activeEditButton = button;
-            const entry = JSON.parse(button.dataset.catalogueEdit);
-            editForm.reset();
-            formStatus.textContent = '';
-            formStatus.className = 'catalogue-form-status';
-            ['brand', 'range', 'version', 'size', 'width', 'height'].forEach(field => {
-                editForm.elements[field].value = entry[field];
-            });
-            ['brand', 'range', 'version', 'size'].forEach(field => {
-                editForm.elements[`original_${field}`].value = entry[`original_${field}`];
-            });
-
-            renderCatalogueImages(entry.images);
-            catalogueModal.showModal();
+    document.addEventListener('click', event => {
+        const button = event.target.closest('[data-catalogue-edit]');
+        if (!button || !catalogueManager?.contains(button)) return;
+        activeEditButton = button;
+        const entry = JSON.parse(button.dataset.catalogueEdit);
+        editForm.reset();
+        formStatus.textContent = '';
+        formStatus.className = 'catalogue-form-status';
+        ['brand', 'range', 'version', 'size', 'width', 'height'].forEach(field => {
+            editForm.elements[field].value = entry[field];
         });
+        ['brand', 'range', 'version', 'size'].forEach(field => {
+            editForm.elements[`original_${field}`].value = entry[`original_${field}`];
+        });
+
+        renderCatalogueImages(entry.images);
+        catalogueModal.showModal();
     });
 
     editForm.addEventListener('submit', async event => {
@@ -129,56 +329,57 @@ if (catalogueModal) {
     });
 }
 
-document.querySelectorAll('[data-catalogue-delete]').forEach(form => {
-    form.addEventListener('submit', async event => {
-        event.preventDefault();
-        const sizeRow = form.closest('.catalogue-size');
-        const sizeName = sizeRow.querySelector('[data-catalogue-size-name]').textContent.trim();
-        if (!window.confirm(`Delete ${sizeName} and all of its images permanently?`)) return;
+document.addEventListener('submit', async event => {
+    const form = event.target.closest('[data-catalogue-delete]');
+    if (!form) return;
+    event.preventDefault();
+    const sizeRow = form.closest('.catalogue-size');
+    const sizeName = sizeRow.querySelector('[data-catalogue-size-name]').textContent.trim();
+    if (!window.confirm(`Delete ${sizeName} and all of its images permanently?`)) return;
 
-        const button = form.querySelector('button[type="submit"]');
-        button.disabled = true;
-        try {
-            const response = await fetch(form.action || location.href, {
-                method: 'POST',
-                body: new FormData(form),
-                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
-            });
-            const result = await response.json().catch(() => ({ error: 'The server returned an invalid delete response.' }));
-            if (!response.ok || !result.ok) throw new Error(result.error || 'The catalogue entry could not be deleted.');
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = true;
+    try {
+        const response = await fetch(form.action || location.href, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+        });
+        const result = await response.json().catch(() => ({ error: 'The server returned an invalid delete response.' }));
+        if (!response.ok || !result.ok) throw new Error(result.error || 'The catalogue entry could not be deleted.');
 
-            const version = sizeRow.closest('.catalogue-version');
-            const range = sizeRow.closest('.catalogue-range');
-            const brand = sizeRow.closest('.catalogue-brand');
-            sizeRow.remove();
+        const version = sizeRow.closest('.catalogue-version');
+        const range = sizeRow.closest('.catalogue-range');
+        const brand = sizeRow.closest('.catalogue-brand');
+        sizeRow.remove();
 
-            const versionCount = version.querySelectorAll(':scope > .catalogue-sizes > .catalogue-size').length;
-            if (versionCount === 0) {
-                version.remove();
-                const rangeCount = range.querySelectorAll(':scope > .catalogue-accordion-content > .catalogue-version').length;
-                if (rangeCount === 0) {
-                    range.remove();
-                    const brandCount = brand.querySelectorAll(':scope > .catalogue-accordion-content > .catalogue-range').length;
-                    if (brandCount === 0) brand.remove();
-                    else brand.querySelector(':scope > summary small').textContent = `${brandCount} range(s)`;
-                } else {
-                    range.querySelector(':scope > summary small').textContent = `${rangeCount} version(s)`;
-                }
+        const versionCount = version.querySelectorAll(':scope > .catalogue-sizes > .catalogue-size').length;
+        if (versionCount === 0) {
+            version.remove();
+            const rangeCount = range.querySelectorAll(':scope > .catalogue-accordion-content > .catalogue-version').length;
+            if (rangeCount === 0) {
+                range.remove();
+                const brandCount = brand.querySelectorAll(':scope > .catalogue-accordion-content > .catalogue-range').length;
+                if (brandCount === 0) brand.remove();
+                else brand.querySelector(':scope > summary small').textContent = `${brandCount} range(s)`;
             } else {
-                version.querySelector(':scope > summary small').textContent = `${versionCount} size(s)`;
+                range.querySelector(':scope > summary small').textContent = `${rangeCount} version(s)`;
             }
-
-            Object.entries(result.summary).forEach(([key, total]) => {
-                const target = document.querySelector(`[data-catalogue-total="${key}"]`);
-                if (target) target.textContent = total;
-            });
-            const managerCount = document.querySelector('.catalogue-manager > .card-heading small');
-            if (managerCount) managerCount.textContent = `${result.summary.sizes} SIZES`;
-        } catch (error) {
-            window.alert(error instanceof Error ? error.message : 'The catalogue entry could not be deleted.');
-            button.disabled = false;
+        } else {
+            version.querySelector(':scope > summary small').textContent = `${versionCount} size(s)`;
         }
-    });
+
+        Object.entries(result.summary).forEach(([key, total]) => {
+            const target = document.querySelector(`[data-catalogue-total="${key}"]`);
+            if (target) target.textContent = total;
+        });
+        const managerCount = document.querySelector('.catalogue-manager > .card-heading small');
+        if (managerCount) managerCount.textContent = `${result.summary.sizes} SIZES`;
+        window.setTimeout(() => refreshCatalogue(true), 500);
+    } catch (error) {
+        window.alert(error instanceof Error ? error.message : 'The catalogue entry could not be deleted.');
+        button.disabled = false;
+    }
 });
 
 const catalogueImportModal = document.querySelector('[data-catalogue-import-modal]');
