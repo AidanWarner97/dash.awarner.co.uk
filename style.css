@@ -331,6 +331,9 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
 .catalogue-size-controls { display: flex; align-items: center; gap: 0.6rem; }
 .catalogue-size-controls > span { color: var(--muted); font-size: 0.58rem; font-weight: 700; white-space: nowrap; }
 .catalogue-size-controls .icon-button { width: 2.1rem; height: 2.1rem; }
+.catalogue-size-controls form { margin: 0; }
+.catalogue-size-controls .catalogue-delete-button { color: #f38ba8; }
+.catalogue-size-controls .catalogue-delete-button:hover { border-color: #f38ba8; background: rgba(243, 139, 168, 0.1); }
 .catalogue-modal { width: min(36rem, calc(100% - 2rem)); max-height: calc(100svh - 2rem); padding: 0; overflow: auto; border: 2px solid var(--line); border-radius: var(--radius); color: var(--text); background: var(--panel); box-shadow: 0 1.5rem 5rem rgba(0, 0, 0, 0.45); }
 .catalogue-modal::backdrop { background: rgba(17, 17, 27, 0.78); backdrop-filter: blur(3px); }
 .catalogue-modal-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.2rem; border-bottom: 2px solid var(--line); }
@@ -346,6 +349,11 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
 .catalogue-replace input { width: 1rem !important; min-height: 0 !important; margin-top: 0.15rem; accent-color: var(--accent); }
 .catalogue-replace strong, .catalogue-replace small { display: block; }
 .catalogue-replace strong { color: var(--text); font-size: 0.65rem; }
+.catalogue-form-status { min-height: 1rem; margin: 0; font-size: 0.62rem; line-height: 1.5; }
+.catalogue-form-status:empty { display: none; }
+.catalogue-form-status.pending { color: var(--accent); }
+.catalogue-form-status.success { color: var(--success); }
+.catalogue-form-status.error { color: #f38ba8; }
 .catalogue-modal-actions { display: flex; justify-content: flex-end; gap: 0.65rem; padding: 0 1.2rem 1.2rem; }
 .catalogue-import-content { display: grid; gap: 1rem; padding: 1.2rem; }
 .catalogue-import-content > p { margin: 0; color: var(--muted); font-size: 0.68rem; line-height: 1.6; }

@@ -34,11 +34,35 @@ const catalogueModal = document.querySelector('[data-catalogue-modal]');
 if (catalogueModal) {
     const editForm = catalogueModal.querySelector('[data-catalogue-edit-form]');
     const imageList = catalogueModal.querySelector('[data-catalogue-edit-images]');
+    const formStatus = catalogueModal.querySelector('[data-catalogue-form-status]');
+    let activeEditButton = null;
+
+    const renderCatalogueImages = images => {
+        imageList.replaceChildren();
+        if (images.length === 0) {
+            const empty = document.createElement('p');
+            empty.textContent = 'No images are currently attached.';
+            imageList.append(empty);
+        }
+        images.forEach(image => {
+            const preview = document.createElement('span');
+            const thumbnail = document.createElement('img');
+            thumbnail.src = image.url;
+            thumbnail.alt = '';
+            const name = document.createElement('small');
+            name.textContent = image.name;
+            preview.append(thumbnail, name);
+            imageList.append(preview);
+        });
+    };
 
     document.querySelectorAll('[data-catalogue-edit]').forEach(button => {
         button.addEventListener('click', () => {
+            activeEditButton = button;
             const entry = JSON.parse(button.dataset.catalogueEdit);
             editForm.reset();
+            formStatus.textContent = '';
+            formStatus.className = 'catalogue-form-status';
             ['brand', 'range', 'version', 'size', 'width', 'height'].forEach(field => {
                 editForm.elements[field].value = entry[field];
             });
@@ -46,24 +70,55 @@ if (catalogueModal) {
                 editForm.elements[`original_${field}`].value = entry[`original_${field}`];
             });
 
-            imageList.replaceChildren();
-            if (entry.images.length === 0) {
-                const empty = document.createElement('p');
-                empty.textContent = 'No images are currently attached.';
-                imageList.append(empty);
-            }
-            entry.images.forEach(image => {
-                const preview = document.createElement('span');
-                const thumbnail = document.createElement('img');
-                thumbnail.src = image.url;
-                thumbnail.alt = '';
-                const name = document.createElement('small');
-                name.textContent = image.name;
-                preview.append(thumbnail, name);
-                imageList.append(preview);
-            });
+            renderCatalogueImages(entry.images);
             catalogueModal.showModal();
         });
+    });
+
+    editForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        const submitButton = editForm.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        formStatus.textContent = 'Uploading and saving…';
+        formStatus.className = 'catalogue-form-status pending';
+
+        try {
+            const response = await fetch(editForm.action || location.href, {
+                method: 'POST',
+                body: new FormData(editForm),
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            });
+            const result = await response.json().catch(() => ({ error: 'The server returned an invalid upload response.' }));
+            if (!response.ok || !result.ok) throw new Error(result.error || 'The catalogue entry could not be saved.');
+
+            const entry = result.entry;
+            renderCatalogueImages(entry.images);
+            editForm.elements['images[]'].value = '';
+            editForm.elements.replace_images.checked = false;
+            ['brand', 'range', 'version', 'size'].forEach(field => {
+                editForm.elements[`original_${field}`].value = entry[`original_${field}`];
+            });
+
+            if (activeEditButton) {
+                activeEditButton.dataset.catalogueEdit = JSON.stringify(entry);
+                activeEditButton.setAttribute('aria-label', `Edit ${entry.size}`);
+                const sizeRow = activeEditButton.closest('.catalogue-size');
+                sizeRow.querySelector('[data-catalogue-size-name]').textContent = entry.size;
+                sizeRow.querySelector('[data-catalogue-size-dimensions]').textContent = `${entry.width} × ${entry.height} px`;
+                sizeRow.querySelector('[data-catalogue-image-count]').textContent = `${entry.images.length} image(s)`;
+                sizeRow.closest('.catalogue-version').querySelector(':scope > summary strong').textContent = entry.version;
+                sizeRow.closest('.catalogue-range').querySelector(':scope > summary strong').textContent = entry.range;
+                sizeRow.closest('.catalogue-brand').querySelector(':scope > summary strong').textContent = entry.brand;
+            }
+            document.querySelector('[data-catalogue-total="images"]').textContent = result.total_images;
+            formStatus.textContent = result.uploaded > 0 ? `Saved with ${result.uploaded} new image(s).` : 'Catalogue entry saved.';
+            formStatus.className = 'catalogue-form-status success';
+        } catch (error) {
+            formStatus.textContent = error instanceof Error ? error.message : 'The catalogue entry could not be saved.';
+            formStatus.className = 'catalogue-form-status error';
+        } finally {
+            submitButton.disabled = false;
+        }
     });
 
     catalogueModal.querySelectorAll('[data-catalogue-modal-close]').forEach(button => {
@@ -73,6 +128,58 @@ if (catalogueModal) {
         if (event.target === catalogueModal) catalogueModal.close();
     });
 }
+
+document.querySelectorAll('[data-catalogue-delete]').forEach(form => {
+    form.addEventListener('submit', async event => {
+        event.preventDefault();
+        const sizeRow = form.closest('.catalogue-size');
+        const sizeName = sizeRow.querySelector('[data-catalogue-size-name]').textContent.trim();
+        if (!window.confirm(`Delete ${sizeName} and all of its images permanently?`)) return;
+
+        const button = form.querySelector('button[type="submit"]');
+        button.disabled = true;
+        try {
+            const response = await fetch(form.action || location.href, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            });
+            const result = await response.json().catch(() => ({ error: 'The server returned an invalid delete response.' }));
+            if (!response.ok || !result.ok) throw new Error(result.error || 'The catalogue entry could not be deleted.');
+
+            const version = sizeRow.closest('.catalogue-version');
+            const range = sizeRow.closest('.catalogue-range');
+            const brand = sizeRow.closest('.catalogue-brand');
+            sizeRow.remove();
+
+            const versionCount = version.querySelectorAll(':scope > .catalogue-sizes > .catalogue-size').length;
+            if (versionCount === 0) {
+                version.remove();
+                const rangeCount = range.querySelectorAll(':scope > .catalogue-accordion-content > .catalogue-version').length;
+                if (rangeCount === 0) {
+                    range.remove();
+                    const brandCount = brand.querySelectorAll(':scope > .catalogue-accordion-content > .catalogue-range').length;
+                    if (brandCount === 0) brand.remove();
+                    else brand.querySelector(':scope > summary small').textContent = `${brandCount} range(s)`;
+                } else {
+                    range.querySelector(':scope > summary small').textContent = `${rangeCount} version(s)`;
+                }
+            } else {
+                version.querySelector(':scope > summary small').textContent = `${versionCount} size(s)`;
+            }
+
+            Object.entries(result.summary).forEach(([key, total]) => {
+                const target = document.querySelector(`[data-catalogue-total="${key}"]`);
+                if (target) target.textContent = total;
+            });
+            const managerCount = document.querySelector('.catalogue-manager > .card-heading small');
+            if (managerCount) managerCount.textContent = `${result.summary.sizes} SIZES`;
+        } catch (error) {
+            window.alert(error instanceof Error ? error.message : 'The catalogue entry could not be deleted.');
+            button.disabled = false;
+        }
+    });
+});
 
 const catalogueImportModal = document.querySelector('[data-catalogue-import-modal]');
 if (catalogueImportModal) {

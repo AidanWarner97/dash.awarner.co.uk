@@ -8,6 +8,11 @@ require_once dirname(__DIR__, 2) . '/includes/catalogue_manager.php';
 updates_start_session();
 $escape = static fn(mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 $error = null;
+$settings = project_settings('tileimagegen');
+$imageUrl = static function (string $path) use ($settings): string {
+    return 'https://' . $settings['domain'] . '/' . implode('/', array_map('rawurlencode', explode('/', $path)));
+};
+$ajaxRequest = strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
 
 if (isset($_GET['csv-template'])) {
     header('Content-Type: text/csv; charset=UTF-8');
@@ -29,6 +34,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             header('Location: /tileimagegen/catalogue/?deleted=1');
             exit;
         }
+        if ($action === 'delete-size') {
+            $result = catalogue_delete_size($_POST);
+            if ($ajaxRequest) {
+                header('Content-Type: application/json; charset=UTF-8');
+                echo json_encode(['ok' => true, 'summary' => $result['summary']], JSON_THROW_ON_ERROR);
+                exit;
+            }
+            header('Location: /tileimagegen/catalogue/?deleted-size=1');
+            exit;
+        }
         if ($action === 'import-csv') {
             $result = catalogue_import_csv_upload($_FILES['catalogue_csv'] ?? []);
             header('Location: /tileimagegen/catalogue/?imported=1&rows=' . $result['rows'] . '&created=' . $result['created'] . '&updated=' . $result['updated']);
@@ -36,9 +51,27 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
 
         $result = catalogue_upsert_size($_POST, $_FILES['images'] ?? []);
+        if ($ajaxRequest) {
+            $entry = $result['entry'];
+            $entry['images'] = array_map(static fn(string $path): array => ['name' => basename($path), 'url' => $imageUrl($path)], $entry['images']);
+            header('Content-Type: application/json; charset=UTF-8');
+            echo json_encode([
+                'ok' => true,
+                'uploaded' => $result['uploaded'],
+                'entry' => $entry,
+                'total_images' => catalogue_summary($result['catalogue'])['images'],
+            ], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+            exit;
+        }
         header('Location: /tileimagegen/catalogue/?saved=1&uploaded=' . $result['uploaded']);
         exit;
     } catch (Throwable $exception) {
+        if ($ajaxRequest) {
+            http_response_code($exception instanceof InvalidArgumentException ? 422 : 500);
+            header('Content-Type: application/json; charset=UTF-8');
+            echo json_encode(['ok' => false, 'error' => $exception->getMessage()], JSON_THROW_ON_ERROR);
+            exit;
+        }
         $error = $exception->getMessage();
     }
 }
@@ -52,11 +85,6 @@ try {
     $error ??= $exception->getMessage();
 }
 
-$settings = project_settings('tileimagegen');
-$imageUrl = static function (string $path) use ($settings): string {
-    return 'https://' . $settings['domain'] . '/' . implode('/', array_map('rawurlencode', explode('/', $path)));
-};
-
 dashboard_header($settings['title'] . ': Catalogue', 'tile-catalogue', 'tileimagegen');
 ?>
 <section class="view active">
@@ -67,11 +95,12 @@ dashboard_header($settings['title'] . ': Catalogue', 'tile-catalogue', 'tileimag
     <?php if (isset($_GET['saved'])): ?><div class="flash success"><i data-lucide="circle-check"></i>Catalogue entry saved<?= ((int) ($_GET['uploaded'] ?? 0)) > 0 ? ' with ' . (int) $_GET['uploaded'] . ' new image(s)' : '' ?>.</div><?php endif; ?>
     <?php if (isset($_GET['imported'])): ?><div class="flash success"><i data-lucide="circle-check"></i>Imported <?= (int) ($_GET['rows'] ?? 0) ?> catalogue row(s): <?= (int) ($_GET['created'] ?? 0) ?> created and <?= (int) ($_GET['updated'] ?? 0) ?> updated.</div><?php endif; ?>
     <?php if (isset($_GET['deleted'])): ?><div class="flash success"><i data-lucide="circle-check"></i>Catalogue image deleted.</div><?php endif; ?>
+    <?php if (isset($_GET['deleted-size'])): ?><div class="flash success"><i data-lucide="circle-check"></i>Catalogue entry deleted.</div><?php endif; ?>
     <?php if ($error !== null): ?><div class="flash error"><i data-lucide="circle-alert"></i><?= $escape($error) ?></div><?php endif; ?>
     <?php if (!updates_writes_enabled()): ?><div class="data-notice"><i data-lucide="lock-keyhole"></i><div><strong>Catalogue writing is disabled</strong><p>Enable authenticated dashboard writes before changing catalogue data.</p></div></div><?php endif; ?>
 
     <div class="catalogue-summary" aria-label="Catalogue totals">
-        <?php foreach ($summary as $label => $total): ?><span><small><?= $escape(strtoupper($label)) ?></small><strong><?= (int) $total ?></strong></span><?php endforeach; ?>
+        <?php foreach ($summary as $label => $total): ?><span><small><?= $escape(strtoupper($label)) ?></small><strong data-catalogue-total="<?= $escape($label) ?>"><?= (int) $total ?></strong></span><?php endforeach; ?>
     </div>
 
     <div class="catalogue-layout">
@@ -118,7 +147,7 @@ dashboard_header($settings['title'] . ': Catalogue', 'tile-catalogue', 'tileimag
                                     'images' => array_map(static fn(string $path): array => ['name' => basename($path), 'url' => $imageUrl($path)], $size['images'] ?? []),
                                 ]; ?>
                                 <div class="catalogue-size">
-                                    <div class="catalogue-size-heading"><div><strong><?= $escape($size['name'] ?? '') ?></strong><small><?= (int) ($size['width'] ?? 0) ?> × <?= (int) ($size['height'] ?? 0) ?> px</small></div><div class="catalogue-size-controls"><span><?= count($size['images'] ?? []) ?> image(s)</span><button class="icon-button" type="button" data-catalogue-edit="<?= $escape(json_encode($editData, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)) ?>" title="Edit entry" aria-label="Edit <?= $escape($size['name'] ?? '') ?>"><i data-lucide="pencil"></i></button></div></div>
+                                    <div class="catalogue-size-heading"><div><strong data-catalogue-size-name><?= $escape($size['name'] ?? '') ?></strong><small data-catalogue-size-dimensions><?= (int) ($size['width'] ?? 0) ?> × <?= (int) ($size['height'] ?? 0) ?> px</small></div><div class="catalogue-size-controls"><span data-catalogue-image-count><?= count($size['images'] ?? []) ?> image(s)</span><button class="icon-button" type="button" data-catalogue-edit="<?= $escape(json_encode($editData, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)) ?>" title="Edit entry" aria-label="Edit <?= $escape($size['name'] ?? '') ?>"><i data-lucide="pencil"></i></button><form method="post" data-catalogue-delete><input type="hidden" name="csrf_token" value="<?= $escape(updates_csrf_token()) ?>"><input type="hidden" name="action" value="delete-size"><?php foreach (['brand', 'range', 'version', 'size'] as $field): ?><input type="hidden" name="<?= $field ?>" value="<?= $escape($editData['original_' . $field]) ?>"><?php endforeach; ?><button class="icon-button catalogue-delete-button" type="submit" title="Delete entry" aria-label="Delete <?= $escape($size['name'] ?? '') ?>"<?= updates_writes_enabled() ? '' : ' disabled' ?>><i data-lucide="trash-2"></i></button></form></div></div>
                                 </div>
                             <?php endforeach; ?>
                                     </div>
@@ -148,6 +177,7 @@ dashboard_header($settings['title'] . ': Catalogue', 'tile-catalogue', 'tileimag
                 <div class="catalogue-edit-images" data-catalogue-edit-images></div>
                 <label>Upload additional images<input type="file" name="images[]" accept="image/jpeg,image/png,image/webp" multiple><small>New images are added to the entry unless replacement is selected.</small></label>
                 <label class="catalogue-replace"><input type="checkbox" name="replace_images" value="1"><span><strong>Replace existing images</strong><small>Requires at least one new image. Existing files will be deleted after the catalogue saves.</small></span></label>
+                <p class="catalogue-form-status" data-catalogue-form-status role="status" aria-live="polite"></p>
             </div>
             <div class="catalogue-modal-actions"><button class="secondary-button" type="button" data-catalogue-modal-close>Cancel</button><button class="primary-button" type="submit"<?= updates_writes_enabled() ? '' : ' disabled' ?>><i data-lucide="save"></i>Save changes</button></div>
         </form>

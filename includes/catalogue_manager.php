@@ -200,7 +200,23 @@ function catalogue_upsert_size(array $input, array $uploads, ?string $file = nul
         }
     }
 
-    return ['catalogue' => $catalogue, 'uploaded' => count($stored)];
+    return [
+        'catalogue' => $catalogue,
+        'uploaded' => count($stored),
+        'entry' => [
+            'original_brand' => $ids['brand'],
+            'original_range' => $ids['range'],
+            'original_version' => $ids['version'],
+            'original_size' => $ids['size'],
+            'brand' => $names['brand'],
+            'range' => $names['range'],
+            'version' => $names['version'],
+            'size' => $names['size'],
+            'width' => $width,
+            'height' => $height,
+            'images' => $sizes[$sizeIndex]['images'],
+        ],
+    ];
 }
 
 function catalogue_import_csv_upload(array $upload, ?string $file = null): array
@@ -363,6 +379,36 @@ function catalogue_extract_size(array &$catalogue, array $ids): array
     }
 
     throw new RuntimeException('The catalogue entry to edit was not found.');
+}
+
+function catalogue_delete_size(array $input, ?string $file = null, ?string $projectRoot = null): array
+{
+    if (!updates_writes_enabled()) {
+        throw new RuntimeException('Catalogue writing is disabled.');
+    }
+
+    $ids = [];
+    foreach (['brand', 'range', 'version', 'size'] as $field) {
+        $id = trim((string) ($input[$field] ?? ''));
+        if (preg_match('/^[a-z0-9][a-z0-9-]{0,79}$/', $id) !== 1) {
+            throw new InvalidArgumentException('The catalogue entry to delete is invalid.');
+        }
+        $ids[$field] = $id;
+    }
+
+    $catalogue = catalogue_load($file);
+    $deletedSize = catalogue_extract_size($catalogue, $ids);
+    catalogue_save($catalogue, $file);
+
+    $root = $projectRoot ?? catalogue_project_root();
+    foreach (($deletedSize['images'] ?? []) as $imagePath) {
+        catalogue_delete_stored_file($root, (string) $imagePath);
+    }
+
+    return [
+        'deleted_images' => count($deletedSize['images'] ?? []),
+        'summary' => catalogue_summary($catalogue),
+    ];
 }
 
 function catalogue_find_or_add(array &$items, string $id, string $name, string $childrenKey): int
