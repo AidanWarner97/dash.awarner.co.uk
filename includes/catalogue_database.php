@@ -15,10 +15,11 @@ function catalogue_database_tables(): array
 
 function catalogue_database(bool $ensureSchema = true): PDO
 {
-    $database = project_database_connection('tileimagegen');
-    if (!$ensureSchema) {
-        return $database;
-    }
+    static $database = null;
+    static $schemaEnsured = false;
+    $database ??= project_database_connection('tileimagegen');
+    if (!$ensureSchema || $schemaEnsured) return $database;
+
     $tables = catalogue_database_tables();
     $database->exec("CREATE TABLE IF NOT EXISTS {$tables['catalogue']} (
         id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
@@ -37,16 +38,32 @@ function catalogue_database(bool $ensureSchema = true): PDO
         updated_at DATETIME NOT NULL,
         UNIQUE KEY catalogue_assets_object_key (object_key)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    $schemaEnsured = true;
 
     return $database;
+}
+
+function catalogue_database_read(callable $read): mixed
+{
+    $database = catalogue_database(false);
+    try {
+        return $read($database);
+    } catch (PDOException $exception) {
+        if ((string) $exception->getCode() !== '42S02') {
+            throw $exception;
+        }
+        $database = catalogue_database(true);
+        return $read($database);
+    }
 }
 
 function catalogue_database_load(): ?array
 {
     try {
-        $database = catalogue_database(false);
         $table = catalogue_database_tables()['catalogue'];
-        $row = $database->query("SELECT document FROM {$table} WHERE id = 1")->fetch();
+        $row = catalogue_database_read(static fn(PDO $database): mixed =>
+            $database->query("SELECT document FROM {$table} WHERE id = 1")->fetch()
+        );
         if (!is_array($row)) {
             return null;
         }
@@ -63,9 +80,10 @@ function catalogue_database_load(): ?array
 
 function catalogue_database_snapshot(): ?array
 {
-    $database = catalogue_database(false);
     $table = catalogue_database_tables()['catalogue'];
-    $row = $database->query("SELECT document, revision, updated_at FROM {$table} WHERE id = 1")->fetch();
+    $row = catalogue_database_read(static fn(PDO $database): mixed =>
+        $database->query("SELECT document, revision, updated_at FROM {$table} WHERE id = 1")->fetch()
+    );
     if (!is_array($row)) {
         return null;
     }
@@ -83,10 +101,11 @@ function catalogue_database_snapshot(): ?array
 
 function catalogue_database_storage_status(): array
 {
-    $database = catalogue_database(false);
     $table = catalogue_database_tables()['assets'];
-    $rows = $database->query("SELECT storage_state, COUNT(*) AS total, COALESCE(SUM(byte_size), 0) AS bytes,
-        MAX(updated_at) AS updated_at FROM {$table} GROUP BY storage_state")->fetchAll();
+    $rows = catalogue_database_read(static fn(PDO $database): array => $database->query(
+        "SELECT storage_state, COUNT(*) AS total, COALESCE(SUM(byte_size), 0) AS bytes,
+        MAX(updated_at) AS updated_at FROM {$table} GROUP BY storage_state"
+    )->fetchAll());
     $counts = ['pending' => 0, 'ready' => 0, 'error' => 0, 'delete_pending' => 0, 'deleted' => 0];
     $readyBytes = 0;
     $updatedAt = null;
@@ -196,7 +215,8 @@ function catalogue_database_mark_asset(string $objectKey, string $state, ?int $b
 
 function catalogue_database_assets(): array
 {
-    $database = catalogue_database(false);
     $table = catalogue_database_tables()['assets'];
-    return $database->query("SELECT object_key, byte_size, sha256, storage_state, last_error FROM {$table} ORDER BY object_key")->fetchAll();
+    return catalogue_database_read(static fn(PDO $database): array => $database->query(
+        "SELECT object_key, byte_size, sha256, storage_state, last_error FROM {$table} ORDER BY object_key"
+    )->fetchAll());
 }

@@ -12,6 +12,7 @@ require_once dirname(__DIR__) . '/includes/catalogue_manager.php';
 function storage_cli_usage(): never
 {
     fwrite(STDERR, "Usage:\n");
+    fwrite(STDERR, "  php bin/catalogue-storage.php init\n");
     fwrite(STDERR, "  php bin/catalogue-storage.php status\n");
     fwrite(STDERR, "  php bin/catalogue-storage.php migrate [--limit=N] [--force] [--no-verify]\n");
     fwrite(STDERR, "  php bin/catalogue-storage.php deletion-manifest --manifest=/secure/path/manifest.json\n");
@@ -47,6 +48,7 @@ function storage_cli_asset_map(): array
 
 function storage_cli_status(): void
 {
+    catalogue_database(true);
     $states = [];
     $bytes = 0;
     foreach (catalogue_database_assets() as $asset) {
@@ -59,8 +61,17 @@ function storage_cli_status(): void
     printf("%-16s %s\n", 'verified bytes', number_format($bytes));
 }
 
+function storage_cli_init(): void
+{
+    catalogue_database(true);
+    $catalogue = catalogue_load(catalogue_file_path());
+    catalogue_database_save($catalogue);
+    printf("Catalogue tables initialized with %d assets.\n", count(catalogue_database_image_keys($catalogue)));
+}
+
 function storage_cli_migrate(array $options): void
 {
+    catalogue_database(true);
     if (!bunny_storage_enabled()) {
         throw new RuntimeException('Set BUNNY_STORAGE_ZONE, BUNNY_STORAGE_ACCESS_KEY, and BUNNY_CDN_HOST before migrating.');
     }
@@ -178,6 +189,7 @@ $command = $argv[1] ?? '';
 $options = storage_cli_options(array_slice($argv, 2));
 try {
     match ($command) {
+        'init' => storage_cli_init(),
         'status' => storage_cli_status(),
         'migrate' => storage_cli_migrate($options),
         'deletion-manifest' => storage_cli_manifest((string) ($options['manifest'] ?? '')),

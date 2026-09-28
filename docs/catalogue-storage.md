@@ -17,6 +17,14 @@ Use the Storage Zone password, not the account API key. `BUNNY_STORAGE_HOST` mus
 
 The existing `TILEIMAGEGEN_DB_*` settings remain the MariaDB source. The dashboard creates `<TILEIMAGEGEN_DB_TABLE_PREFIX>catalogue` and `<TILEIMAGEGEN_DB_TABLE_PREFIX>catalogue_assets` automatically.
 
+Initialize and seed both tables during deployment before serving the catalogue page:
+
+```bash
+php bin/catalogue-storage.php init
+```
+
+The configured MariaDB user requires `CREATE`, `ALTER`, `SELECT`, `INSERT`, and `UPDATE` permissions. If deployment credentials intentionally cannot create tables, apply the schema with a privileged migration user first.
+
 ## Generator environment
 
 Add these values to the Tile Image Generator `.env`:
