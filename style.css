@@ -133,7 +133,7 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
 .project-card a svg { width: 0.75rem; }
 .project-card p { max-width: 26rem; margin: 1rem 0 0; color: var(--muted); font-size: 0.82rem; line-height: 1.65; }
 .primary-button, .secondary-button { display: inline-flex; min-height: 2.8rem; align-items: center; justify-content: center; gap: 0.6rem; padding: 0.7rem 1rem; border-radius: var(--radius); font-weight: 700; text-decoration: none; }
-.primary-button { border: 1px solid #7aa2e2; color: var(--base-dark); background: var(--accent); }
+.primary-button { border: 1px solid #7aa2e2; color: var(--base-dark) !important; background: var(--accent); }
 .primary-button:hover { background: #a4c7fc; }
 .secondary-button { border: 2px solid var(--line); color: var(--text); background: var(--panel); font-size: 0.78rem; }
 .secondary-button:hover { border-color: var(--accent); }
