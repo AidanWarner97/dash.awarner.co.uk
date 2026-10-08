@@ -9,6 +9,7 @@ if (PHP_SAPI !== 'cli') {
 
 require_once __DIR__ . '/includes/feedback_notifications.php';
 require_once __DIR__ . '/includes/feedback_inbound.php';
+require_once __DIR__ . '/includes/update_newsletter.php';
 
 $lock = fopen(sys_get_temp_dir() . '/tileimagegen-feedback-notifications.lock', 'c');
 if ($lock === false || !flock($lock, LOCK_EX | LOCK_NB)) {
@@ -20,6 +21,7 @@ try {
     $summary = [
         'inbound' => feedback_inbound_run(),
         'outbound' => feedback_notifications_run(),
+        'newsletters' => update_newsletter_run(),
     ];
     fwrite(STDOUT, json_encode($summary, JSON_THROW_ON_ERROR) . "\n");
 } catch (Throwable $error) {

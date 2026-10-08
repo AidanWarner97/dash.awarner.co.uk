@@ -14,6 +14,39 @@ function feedback_mailer_configured(): bool
         && trim((string) (getenv('TILEIMAGEGEN_SMTP_FROM_EMAIL') ?: '')) !== '';
 }
 
+function feedback_mailer_create(): PHPMailer
+{
+    if (!feedback_mailer_configured()) {
+        throw new RuntimeException('SMTP is not configured. Add the Tile Image Generator SMTP settings to .env.');
+    }
+
+    $fromEmail = trim((string) (getenv('TILEIMAGEGEN_SMTP_FROM_EMAIL') ?: ''));
+    if (!filter_var($fromEmail, FILTER_VALIDATE_EMAIL)) {
+        throw new RuntimeException('The SMTP sender address is invalid.');
+    }
+
+    $encryption = strtolower(trim((string) (getenv('TILEIMAGEGEN_SMTP_ENCRYPTION') ?: 'tls')));
+    if (!in_array($encryption, ['tls', 'smtps', 'none'], true)) {
+        throw new RuntimeException('TILEIMAGEGEN_SMTP_ENCRYPTION must be tls, smtps, or none.');
+    }
+
+    $settings = project_settings('tileimagegen');
+    $mail = new PHPMailer(true);
+    $mail->isSMTP();
+    $mail->Host = trim((string) getenv('TILEIMAGEGEN_SMTP_HOST'));
+    $mail->Port = (int) (getenv('TILEIMAGEGEN_SMTP_PORT') ?: ($encryption === 'smtps' ? 465 : 587));
+    $mail->Timeout = 10;
+    $mail->SMTPAuth = trim((string) (getenv('TILEIMAGEGEN_SMTP_USERNAME') ?: '')) !== '';
+    $mail->Username = (string) (getenv('TILEIMAGEGEN_SMTP_USERNAME') ?: '');
+    $mail->Password = (string) (getenv('TILEIMAGEGEN_SMTP_PASSWORD') ?: '');
+    $mail->CharSet = PHPMailer::CHARSET_UTF8;
+    if ($encryption === 'tls') $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+    elseif ($encryption === 'smtps') $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+    else $mail->SMTPAutoTLS = false;
+    $mail->setFrom($fromEmail, trim((string) (getenv('TILEIMAGEGEN_SMTP_FROM_NAME') ?: $settings['title'])));
+    return $mail;
+}
+
 function feedback_mailer_escape(mixed $value): string
 {
     return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -135,32 +168,13 @@ function feedback_mailer_creation_text(array $feedback, string $publicUrl): stri
 
 function feedback_mailer_send_creation(array $feedback): void
 {
-    if (!feedback_mailer_configured()) throw new RuntimeException('SMTP is not configured.');
-
     $recipient = trim((string) ($feedback['email'] ?? ''));
-    $fromEmail = trim((string) (getenv('TILEIMAGEGEN_SMTP_FROM_EMAIL') ?: ''));
-    if (!filter_var($recipient, FILTER_VALIDATE_EMAIL) || !filter_var($fromEmail, FILTER_VALIDATE_EMAIL)) throw new RuntimeException('The SMTP sender or feedback recipient address is invalid.');
-
-    $encryption = strtolower(trim((string) (getenv('TILEIMAGEGEN_SMTP_ENCRYPTION') ?: 'tls')));
-    if (!in_array($encryption, ['tls', 'smtps', 'none'], true)) throw new RuntimeException('TILEIMAGEGEN_SMTP_ENCRYPTION must be tls, smtps, or none.');
+    if (!filter_var($recipient, FILTER_VALIDATE_EMAIL)) throw new RuntimeException('The feedback recipient address is invalid.');
 
     $settings = project_settings('tileimagegen');
     $publicUrl = 'https://' . $settings['domain'] . '/feedback/' . (int) $feedback['public_id'];
-    $mail = new PHPMailer(true);
     try {
-        $mail->isSMTP();
-        $mail->Host = trim((string) getenv('TILEIMAGEGEN_SMTP_HOST'));
-        $mail->Port = (int) (getenv('TILEIMAGEGEN_SMTP_PORT') ?: ($encryption === 'smtps' ? 465 : 587));
-        $mail->Timeout = 10;
-        $mail->SMTPAuth = trim((string) (getenv('TILEIMAGEGEN_SMTP_USERNAME') ?: '')) !== '';
-        $mail->Username = (string) (getenv('TILEIMAGEGEN_SMTP_USERNAME') ?: '');
-        $mail->Password = (string) (getenv('TILEIMAGEGEN_SMTP_PASSWORD') ?: '');
-        $mail->CharSet = PHPMailer::CHARSET_UTF8;
-        if ($encryption === 'tls') $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        elseif ($encryption === 'smtps') $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-        else $mail->SMTPAutoTLS = false;
-
-        $mail->setFrom($fromEmail, trim((string) (getenv('TILEIMAGEGEN_SMTP_FROM_NAME') ?: $settings['title'])));
+        $mail = feedback_mailer_create();
         $mail->addAddress($recipient, trim((string) ($feedback['first_name'] ?? '') . ' ' . (string) ($feedback['last_name'] ?? '')));
         $replyAddress = feedback_mailer_reply_address($feedback);
         if ($replyAddress !== null) $mail->addReplyTo($replyAddress, 'Tile Image Generator Feedback');
@@ -176,41 +190,16 @@ function feedback_mailer_send_creation(array $feedback): void
 
 function feedback_mailer_send_response(array $feedback, string $response, string $author): void
 {
-    if (!feedback_mailer_configured()) {
-        throw new RuntimeException('SMTP is not configured. Add the Tile Image Generator SMTP settings to .env.');
-    }
-
     $recipient = trim((string) ($feedback['email'] ?? ''));
-    $fromEmail = trim((string) (getenv('TILEIMAGEGEN_SMTP_FROM_EMAIL') ?: ''));
-    if (!filter_var($recipient, FILTER_VALIDATE_EMAIL) || !filter_var($fromEmail, FILTER_VALIDATE_EMAIL)) {
-        throw new RuntimeException('The SMTP sender or feedback recipient address is invalid.');
+    if (!filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+        throw new RuntimeException('The feedback recipient address is invalid.');
     }
-
-    $encryption = strtolower(trim((string) (getenv('TILEIMAGEGEN_SMTP_ENCRYPTION') ?: 'tls')));
-    if (!in_array($encryption, ['tls', 'smtps', 'none'], true)) {
-        throw new RuntimeException('TILEIMAGEGEN_SMTP_ENCRYPTION must be tls, smtps, or none.');
-    }
-
-    $mail = new PHPMailer(true);
     try {
-        $mail->isSMTP();
-        $mail->Host = trim((string) getenv('TILEIMAGEGEN_SMTP_HOST'));
-        $mail->Port = (int) (getenv('TILEIMAGEGEN_SMTP_PORT') ?: ($encryption === 'smtps' ? 465 : 587));
-        $mail->Timeout = 10;
-        $mail->SMTPAuth = trim((string) (getenv('TILEIMAGEGEN_SMTP_USERNAME') ?: '')) !== '';
-        $mail->Username = (string) (getenv('TILEIMAGEGEN_SMTP_USERNAME') ?: '');
-        $mail->Password = (string) (getenv('TILEIMAGEGEN_SMTP_PASSWORD') ?: '');
-        $mail->CharSet = PHPMailer::CHARSET_UTF8;
-        if ($encryption === 'tls') $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        elseif ($encryption === 'smtps') $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-        else $mail->SMTPAutoTLS = false;
-
+        $mail = feedback_mailer_create();
         $settings = project_settings('tileimagegen');
-        $fromName = trim((string) (getenv('TILEIMAGEGEN_SMTP_FROM_NAME') ?: $settings['title']));
         $publicUrl = 'https://' . $settings['domain'] . '/feedback/' . (int) $feedback['public_id'];
         $recipientName = trim((string) ($feedback['first_name'] ?? '') . ' ' . (string) ($feedback['last_name'] ?? ''));
 
-        $mail->setFrom($fromEmail, $fromName);
         $mail->addAddress($recipient, $recipientName);
         $replyAddress = feedback_mailer_reply_address($feedback);
         if ($replyAddress !== null) $mail->addReplyTo($replyAddress, 'Tile Image Generator Feedback');

@@ -206,6 +206,11 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
 .flash.error { border-color: #f38ba8; }
 .flash.error svg { color: #f38ba8; }
 .updates-manager, .update-editor { min-height: 0; padding: 0; }
+.newsletter-manager { margin-bottom: 1rem; padding: 0; }
+.newsletter-manager .card-heading > i { color: var(--accent); }
+.newsletter-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 1.2rem; }
+.newsletter-fields label { display: grid; gap: 0.45rem; color: var(--muted); font-size: 0.62rem; font-weight: 700; text-transform: uppercase; }
+.newsletter-fields input, .newsletter-fields select { width: 100%; padding: 0.75rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-dark); color: var(--text); font: inherit; text-transform: none; }
 .updates-table-wrap { overflow-x: auto; }
 .updates-table { width: 100%; border-collapse: collapse; }
 .updates-table th, .updates-table td { padding: 0.9rem 1.2rem; border-bottom: 1px solid var(--line); text-align: left; }
@@ -506,6 +511,7 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
     .editor-fields { grid-template-columns: 1fr; padding: 1rem; }
     .editor-fields .wide { grid-column: auto; }
     .editor-actions { padding: 0 1rem 1rem; }
+    .newsletter-fields { grid-template-columns: 1fr; padding: 1rem; }
     .updates-table th:nth-child(3), .updates-table td:nth-child(3) { display: none; }
     .feedback-filters { grid-template-columns: 1fr; }
     .feedback-filters .search-field { grid-column: auto; }

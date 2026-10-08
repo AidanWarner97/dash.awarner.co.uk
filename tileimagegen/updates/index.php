@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__, 2) . '/includes/layout.php';
 require_once dirname(__DIR__, 2) . '/includes/update_manager.php';
+require_once dirname(__DIR__, 2) . '/includes/update_newsletter.php';
 
 updates_start_session();
 
@@ -22,6 +23,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 			exit;
 		}
 
+		if (in_array(($_POST['action'] ?? ''), ['send_test', 'queue_newsletter'], true)) {
+			$post = updates_find_post((string) ($_POST['filename'] ?? ''));
+			if ($post === null) throw new RuntimeException('Select an update that still exists.');
+			if (($_POST['action'] ?? '') === 'send_test') {
+				update_newsletter_send($post, trim((string) ($_POST['test_email'] ?? '')), '', true);
+				header('Location: /tileimagegen/updates/?test_sent=1');
+			} else {
+				$queued = update_newsletter_queue(update_newsletter_db(), $post);
+				header('Location: /tileimagegen/updates/?newsletter_queued=' . $queued);
+			}
+			exit;
+		}
+
 		$submission = isset($_POST['payload']) ? updates_decode_submission((string) $_POST['payload']) : $_POST;
 		$filename = updates_save_post($submission);
 		header('Location: /tileimagegen/updates/?saved=1&edit=' . rawurlencode($filename));
@@ -36,6 +50,15 @@ try {
 } catch (Throwable $exception) {
 	$posts = [];
 	$error ??= $exception->getMessage();
+}
+$publishedPosts = array_values(array_filter($posts, static fn(array $post): bool => ($post['state'] ?? '') === 'published'));
+$consentedRecipients = 0;
+try {
+	$newsletterDb = update_newsletter_db();
+	update_newsletter_install($newsletterDb);
+	$consentedRecipients = update_newsletter_consent_count($newsletterDb);
+} catch (Throwable $exception) {
+	$error ??= 'Newsletter status is unavailable: ' . $exception->getMessage();
 }
 
 $editing = null;
@@ -67,6 +90,8 @@ dashboard_header($settings['title'] . ': Updates', 'tile-updates', 'tileimagegen
 	</div>
 	<?php if (isset($_GET['saved'])): ?><div class="flash success"><i data-lucide="circle-check"></i>Update saved successfully.</div><?php endif; ?>
 	<?php if (isset($_GET['deleted'])): ?><div class="flash success"><i data-lucide="circle-check"></i>Update deleted successfully.</div><?php endif; ?>
+	<?php if (isset($_GET['test_sent'])): ?><div class="flash success"><i data-lucide="mail-check"></i>Test newsletter sent successfully.</div><?php endif; ?>
+	<?php if (isset($_GET['newsletter_queued'])): ?><div class="flash success"><i data-lucide="send"></i><?= (int) $_GET['newsletter_queued'] ?> consented recipient<?= (int) $_GET['newsletter_queued'] === 1 ? '' : 's' ?> queued. Existing deliveries were not duplicated.</div><?php endif; ?>
 	<?php if ($error !== null): ?><div class="flash error"><i data-lucide="circle-alert"></i><?= $escape($error) ?></div><?php endif; ?>
 	<?php if (!updates_writes_enabled()): ?><div class="data-notice"><i data-lucide="lock-keyhole"></i><div><strong>Update writing is disabled</strong><p>Add <code>DASHBOARD_ALLOW_WRITES=true</code> after administrator authentication is configured. Existing posts remain available to review.</p></div></div><?php endif; ?>
 
@@ -85,6 +110,15 @@ dashboard_header($settings['title'] . ': Updates', 'tile-updates', 'tileimagegen
 			<div class="editor-actions"><a class="secondary-button" href="/tileimagegen/updates/">Cancel</a><button class="primary-button" type="submit"<?= updates_writes_enabled() ? '' : ' disabled' ?>><i data-lucide="save"></i>Save update</button></div>
 		</form>
 	<?php else: ?>
+		<form class="content-card newsletter-manager" method="post" action="/tileimagegen/updates/">
+			<input type="hidden" name="csrf_token" value="<?= $escape(updates_csrf_token()) ?>">
+			<div class="card-heading"><div><small><?= $consentedRecipients ?> CONSENTED RECIPIENT<?= $consentedRecipients === 1 ? '' : 'S' ?></small><h2>UPDATE NEWSLETTER</h2></div><i data-lucide="mail"></i></div>
+			<div class="newsletter-fields">
+				<label>Published update<select name="filename" required><?php foreach ($publishedPosts as $post): ?><option value="<?= $escape($post['filename']) ?>"><?= $escape($post['title']) ?> · <?= $escape(date('j M Y', strtotime((string) $post['date']))) ?></option><?php endforeach; ?></select></label>
+				<label>Test recipient<input type="email" name="test_email" maxlength="254" value="aidan@awarner.co.uk" autocomplete="email"></label>
+			</div>
+			<div class="editor-actions"><button class="secondary-button" type="submit" name="action" value="send_test"<?= $publishedPosts ? '' : ' disabled' ?>><i data-lucide="mail-check"></i>Send test</button><button class="primary-button" type="submit" name="action" value="queue_newsletter" onclick="return confirm('Queue this update for all currently consented recipients?')"<?= $publishedPosts && $consentedRecipients > 0 ? '' : ' disabled' ?>><i data-lucide="send"></i>Queue newsletter</button></div>
+		</form>
 		<div class="content-card updates-manager">
 			<div class="card-heading"><div><small><?= count($posts) ?> TOTAL</small><h2>ALL UPDATES</h2></div></div>
 			<?php if (!$posts): ?><div class="list-message">No update posts found.</div><?php endif; ?>
