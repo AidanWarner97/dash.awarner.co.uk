@@ -15,8 +15,10 @@ function dashboard_header(string $title, string $active = 'dashboard', ?string $
     $initials = strtoupper(substr((string) ($nameParts[0] ?? 'A'), 0, 1) . substr((string) ($nameParts[count($nameParts) - 1] ?? ''), 0, 1));
     $tileOpen = $project === 'tileimagegen';
     $portfolioOpen = $project === 'portfolio';
+    $evolutionOpen = $project === 'evolutioncdn';
     $tileSettings = project_settings('tileimagegen');
     $portfolioSettings = project_settings('portfolio');
+    $evolutionSettings = project_settings('evolutioncdn');
     ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -69,6 +71,14 @@ function dashboard_header(string $title, string $active = 'dashboard', ?string $
                         <?= dashboard_nav_link('/portfolio/authentication/', 'shield-check', 'Authentication', $active === 'portfolio-auth') ?>
                         <?= dashboard_nav_link('/portfolio/logs/', 'scroll-text', 'Logs', $active === 'portfolio-logs') ?>
                         <?= dashboard_nav_link('/portfolio/settings/', 'settings', 'Settings', $active === 'portfolio-settings') ?>
+                    </div>
+                </details>
+                <details class="project-group"<?= $evolutionOpen ? ' open' : '' ?>>
+                    <summary><span class="project-icon evolution-icon"><i data-lucide="<?= htmlspecialchars($evolutionSettings['icon'], ENT_QUOTES, 'UTF-8') ?>"></i></span><span><strong><?= htmlspecialchars($evolutionSettings['title'], ENT_QUOTES, 'UTF-8') ?></strong><small><?= htmlspecialchars($evolutionSettings['domain'], ENT_QUOTES, 'UTF-8') ?></small></span><i class="chevron" data-lucide="chevron-down"></i></summary>
+                    <div class="project-links">
+                        <?= dashboard_nav_link('/evolution-cdn/', 'house', 'Overview', $active === 'evolution-overview') ?>
+                        <?= dashboard_nav_link('/evolution-cdn/database/', 'database', 'Database', $active === 'evolution-database') ?>
+                        <?= dashboard_nav_link('/evolution-cdn/settings/', 'settings', 'Settings', $active === 'evolution-settings') ?>
                     </div>
                 </details>
             </nav>

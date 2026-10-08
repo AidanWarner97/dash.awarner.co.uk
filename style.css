@@ -96,6 +96,7 @@ svg { width: 1.1rem; height: 1.1rem; flex: 0 0 auto; }
 .project-icon svg { width: 0.95rem; }
 .tile-icon { color: var(--accent); }
 .portfolio-icon { color: var(--base-dark); background: var(--text); }
+.evolution-icon { color: #a6e3a1; background: #26362f; border-color: #4d705c; }
 .chevron { width: 0.9rem; color: var(--muted); transition: transform 150ms; }
 .project-group[open] .chevron { transform: rotate(180deg); }
 .project-links { display: grid; gap: 0.15rem; margin: 0.25rem 0 0.65rem 1.65rem; padding-left: 1rem; border-left: 2px solid var(--line); }
@@ -120,7 +121,7 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
 .section-title small { display: block; margin-bottom: 0.25rem; color: var(--accent); font-size: 0.65rem; font-weight: 700; }
 .section-title h1 { margin: 0; font-size: clamp(1.4rem, 3vw, 2rem); line-height: 1.15; }
 .section-title p { max-width: 28rem; margin: 0; color: var(--muted); font-size: 0.82rem; text-align: right; }
-.project-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
+.project-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1.25rem; }
 .project-card, .content-card { border: 2px solid transparent; border-radius: var(--radius); background: var(--panel); }
 .project-card { display: flex; min-height: 20rem; flex-direction: column; justify-content: space-between; gap: 1.6rem; padding: 1.4rem; transition: border-color 150ms, transform 150ms; }
 .project-card:hover { border-color: var(--line); transform: translateY(-2px); }
@@ -217,6 +218,9 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
 .updates-table th { color: var(--muted); font-size: 0.6rem; text-transform: uppercase; }
 .updates-table tbody tr:last-child td { border-bottom: 0; }
 .updates-table tbody tr:hover { background: var(--panel-dark); }
+.evolution-grid { align-items: start; }
+.evolution-services .overview-row { text-decoration: none; }
+.evolution-services .overview-row > svg { width: 1rem; color: var(--muted); }
 .updates-table td strong, .updates-table td small { display: block; }
 .updates-table td strong { font-size: 0.75rem; }
 .updates-table td small, .updates-table time { margin-top: 0.25rem; color: var(--muted); font-size: 0.62rem; }

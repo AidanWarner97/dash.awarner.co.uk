@@ -26,6 +26,16 @@ function project_definitions(): array
                 'description' => 'Manage portfolio content, enquiries and site configuration.',
             ],
         ],
+        'evolutioncdn' => [
+            'prefix' => 'EVOLUTION_CDN',
+            'defaults' => [
+                'title' => 'Evolution X CDN',
+                'domain' => 'cdn.evolution-x.org',
+                'icon' => 'cloud-download',
+                'description' => 'Monitor downloads, release delivery, storage, and CDN operations.',
+                'root' => '/mnt/c/users/aidan/documents/git/evo/cdn.evolution-x.org',
+            ],
+        ],
     ];
 }
 
@@ -44,7 +54,7 @@ function project_settings(string $project): array
         'domain' => $value('DOMAIN', $definition['defaults']['domain']),
         'icon' => $value('ICON', $definition['defaults']['icon']),
         'description' => $value('DESCRIPTION', $definition['defaults']['description']),
-        'root' => $value('ROOT'),
+        'root' => $value('ROOT', $definition['defaults']['root'] ?? ''),
         'db_dsn' => $value('DB_DSN'),
         'db_name' => $value('DB_NAME'),
         'db_table_prefix' => $value('DB_TABLE_PREFIX'),
@@ -62,6 +72,7 @@ function project_icon_options(): array
         'image' => 'Image',
         'code-2' => 'Code',
         'layers-3' => 'Layers',
+        'cloud-download' => 'Cloud download',
     ];
 }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/includes/layout.php';
 $tileSettings = project_settings('tileimagegen');
 $portfolioSettings = project_settings('portfolio');
+$evolutionSettings = project_settings('evolutioncdn');
 $escape = static fn(mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 dashboard_header('Dashboard');
 ?>
@@ -20,6 +21,11 @@ dashboard_header('Dashboard');
             <div class="project-card-heading"><span class="project-icon portfolio-icon"><i data-lucide="<?= $escape($portfolioSettings['icon']) ?>"></i></span><span class="project-state"><i></i>Ready</span></div>
             <div><h2><?= $escape($portfolioSettings['title']) ?></h2><a href="https://<?= $escape($portfolioSettings['domain']) ?>" target="_blank" rel="noreferrer"><?= $escape($portfolioSettings['domain']) ?> <i data-lucide="external-link"></i></a><p><?= $escape($portfolioSettings['description']) ?></p></div>
             <a class="primary-button" href="/portfolio/">Manage project <i data-lucide="arrow-right"></i></a>
+        </article>
+        <article class="project-card">
+            <div class="project-card-heading"><span class="project-icon evolution-icon"><i data-lucide="<?= $escape($evolutionSettings['icon']) ?>"></i></span><span class="project-state"><i></i>Ready</span></div>
+            <div><h2><?= $escape($evolutionSettings['title']) ?></h2><a href="https://<?= $escape($evolutionSettings['domain']) ?>" target="_blank" rel="noreferrer"><?= $escape($evolutionSettings['domain']) ?> <i data-lucide="external-link"></i></a><p><?= $escape($evolutionSettings['description']) ?></p></div>
+            <a class="primary-button" href="/evolution-cdn/">Manage project <i data-lucide="arrow-right"></i></a>
         </article>
     </div>
 </section>
