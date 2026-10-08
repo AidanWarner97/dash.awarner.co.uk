@@ -76,6 +76,13 @@ function project_icon_options(): array
     ];
 }
 
+function project_database_name_valid(string $databaseName): bool
+{
+    return $databaseName !== ''
+        && strlen($databaseName) <= 64
+        && preg_match('/^[A-Za-z0-9_-]+$/', $databaseName) === 1;
+}
+
 function project_settings_save(string $project, array $input): void
 {
     if (!updates_writes_enabled()) {
@@ -101,7 +108,7 @@ function project_settings_save(string $project, array $input): void
     if (!array_key_exists($icon, project_icon_options())) throw new InvalidArgumentException('Select a valid project icon.');
     if ($root !== '' && !is_dir($root)) throw new InvalidArgumentException('The source directory does not exist.');
     if ($dsn !== '' && !str_starts_with($dsn, 'mysql:')) throw new InvalidArgumentException('The database DSN must use MariaDB/MySQL.');
-    if ($databaseName !== '' && preg_match('/^[A-Za-z0-9_]+$/', $databaseName) !== 1) throw new InvalidArgumentException('The database name may contain only letters, numbers, and underscores.');
+    if ($databaseName !== '' && !project_database_name_valid($databaseName)) throw new InvalidArgumentException('The database name may contain only letters, numbers, underscores, and hyphens, up to 64 characters.');
     if ($tablePrefix !== '' && preg_match('/^[A-Za-z0-9_]+$/', $tablePrefix) !== 1) throw new InvalidArgumentException('The table prefix may contain only letters, numbers, and underscores.');
 
     $prefix = $definition['prefix'];
@@ -190,7 +197,7 @@ function project_database_connection(string $project): PDO
 
     $selectedDatabase = $database->query('SELECT DATABASE()')->fetchColumn();
     if ($selectedDatabase === null && $settings['db_name'] !== '') {
-        if (preg_match('/^[A-Za-z0-9_]+$/', $settings['db_name']) !== 1) throw new RuntimeException('The configured database name is invalid.');
+        if (!project_database_name_valid($settings['db_name'])) throw new RuntimeException('The configured database name is invalid.');
         $database->exec('USE `' . $settings['db_name'] . '`');
         $selectedDatabase = $settings['db_name'];
     }
