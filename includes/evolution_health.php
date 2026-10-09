@@ -51,6 +51,37 @@ function evolution_health_normalize(array $payload, int $responseMilliseconds): 
     ];
 }
 
+function evolution_health_request(string $url, bool $browserCompatible = false): array
+{
+    $handle = curl_init($url);
+    $headers = ['Accept: application/json'];
+    if ($browserCompatible) {
+        $headers[] = 'Accept-Language: en-GB,en;q=0.9';
+        $headers[] = 'Cache-Control: no-cache';
+    }
+    curl_setopt_array($handle, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 4,
+        CURLOPT_TIMEOUT => 12,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_MAXREDIRS => 2,
+        CURLOPT_HTTPHEADER => $headers,
+        CURLOPT_USERAGENT => $browserCompatible
+            ? 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/141.0.0.0 Safari/537.36'
+            : 'EvolutionDashboardHealth/1.0',
+    ]);
+    $started = microtime(true);
+    $response = curl_exec($handle);
+    $result = [
+        'body' => $response,
+        'milliseconds' => (int) round((microtime(true) - $started) * 1000),
+        'status_code' => (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE),
+        'error' => curl_error($handle),
+    ];
+    curl_close($handle);
+    return $result;
+}
+
 function evolution_health_monitor(bool $forceRefresh = false): array
 {
     $cacheFile = evolution_health_cache_file();
@@ -62,26 +93,17 @@ function evolution_health_monitor(bool $forceRefresh = false): array
     try {
         if (!function_exists('curl_init')) throw new RuntimeException('The PHP cURL extension is unavailable.');
         $domain = project_settings('evolutioncdn')['domain'];
-        $handle = curl_init('https://' . $domain . '/api/health');
-        curl_setopt_array($handle, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CONNECTTIMEOUT => 4,
-            CURLOPT_TIMEOUT => 12,
-            CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_HTTPHEADER => ['Accept: application/json'],
-            CURLOPT_USERAGENT => 'EvolutionDashboardHealth/1.0',
-        ]);
-        $started = microtime(true);
-        $response = curl_exec($handle);
-        $responseMilliseconds = (int) round((microtime(true) - $started) * 1000);
-        $statusCode = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
-        $curlError = curl_error($handle);
-        curl_close($handle);
-        if ($response === false || $statusCode !== 200) {
-            throw new RuntimeException($curlError !== '' ? $curlError : 'Health endpoint returned HTTP ' . $statusCode . '.');
+        $request = evolution_health_request('https://' . $domain . '/api/health');
+        if (in_array($request['status_code'], [403, 429], true)) {
+            $request = evolution_health_request('https://' . $domain . '/api/health?dashboard=' . time(), true);
         }
-        $decoded = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
-        $data = evolution_health_normalize($decoded, $responseMilliseconds);
+        if ($request['body'] === false || $request['status_code'] !== 200) {
+            $detail = trim(preg_replace('/\s+/', ' ', strip_tags((string) $request['body'])));
+            $detail = $detail === '' ? '' : ': ' . mb_substr($detail, 0, 180);
+            throw new RuntimeException($request['error'] !== '' ? $request['error'] : 'Health endpoint returned HTTP ' . $request['status_code'] . $detail . '.');
+        }
+        $decoded = json_decode($request['body'], true, 512, JSON_THROW_ON_ERROR);
+        $data = evolution_health_normalize($decoded, $request['milliseconds']);
         $payload = json_encode(['cached_at' => time(), 'data' => $data], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         $temporary = $cacheFile . '.' . bin2hex(random_bytes(6)) . '.tmp';
         if (file_put_contents($temporary, $payload, LOCK_EX) !== false) {
