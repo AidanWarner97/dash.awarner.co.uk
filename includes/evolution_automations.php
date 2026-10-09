@@ -93,7 +93,7 @@ function evolution_automations_list(PDO $database): array
         if (!empty($row['enabled']) && CronExpression::isValidExpression($schedule)) {
             $nextRun = (new CronExpression($schedule))->getNextRunDate()->format('Y-m-d H:i:s');
         }
-        $automations[] = $definition + $row + ['key' => $key, 'schedule' => $schedule, 'next_run_at' => $nextRun];
+        $automations[] = array_merge($definition, $row, ['key' => $key, 'schedule' => $schedule, 'next_run_at' => $nextRun]);
     }
     return $automations;
 }
