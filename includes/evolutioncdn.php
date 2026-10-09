@@ -51,9 +51,44 @@ function evolutioncdn_source_status(string $root): array
     return $status;
 }
 
+function evolutioncdn_overview_cache_file(int $days): string
+{
+    $settings = project_settings('evolutioncdn');
+    $identity = hash('sha256', implode('|', [$settings['db_dsn'], $settings['db_name'], $settings['db_table_prefix'], $settings['root']]));
+    return sys_get_temp_dir() . '/dashboard-evolution-overview-' . substr($identity, 0, 16) . '-' . $days . '.json';
+}
+
+function evolutioncdn_overview_cache_ttl(): int
+{
+    $configured = filter_var(getenv('EVOLUTION_CDN_OVERVIEW_CACHE_SECONDS') ?: 60, FILTER_VALIDATE_INT, ['options' => ['min_range' => 10, 'max_range' => 3600]]);
+    return $configured === false ? 60 : $configured;
+}
+
 function evolutioncdn_overview_data(int $requestedDays = 7): array
 {
     $days = evolutioncdn_period($requestedDays);
+    $cacheFile = evolutioncdn_overview_cache_file($days);
+    $cached = is_readable($cacheFile) ? json_decode((string) file_get_contents($cacheFile), true) : null;
+    if (is_array($cached) && (int) ($cached['cached_at'] ?? 0) >= time() - evolutioncdn_overview_cache_ttl() && is_array($cached['data'] ?? null)) {
+        return $cached['data'];
+    }
+
+    try {
+        $data = evolutioncdn_overview_uncached($days);
+        $payload = json_encode(['cached_at' => time(), 'data' => $data], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        $temporary = $cacheFile . '.' . bin2hex(random_bytes(6)) . '.tmp';
+        if (file_put_contents($temporary, $payload, LOCK_EX) !== false) {
+            if (!rename($temporary, $cacheFile)) @unlink($temporary);
+        }
+        return $data;
+    } catch (Throwable $error) {
+        if (is_array($cached['data'] ?? null)) return $cached['data'];
+        throw $error;
+    }
+}
+
+function evolutioncdn_overview_uncached(int $days): array
+{
     $settings = project_settings('evolutioncdn');
     $data = [
         'period' => $days,

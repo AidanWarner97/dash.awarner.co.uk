@@ -77,6 +77,9 @@ function dashboard_header(string $title, string $active = 'dashboard', ?string $
                     <summary><span class="project-icon evolution-icon"><i data-lucide="<?= htmlspecialchars($evolutionSettings['icon'], ENT_QUOTES, 'UTF-8') ?>"></i></span><span><strong><?= htmlspecialchars($evolutionSettings['title'], ENT_QUOTES, 'UTF-8') ?></strong><small><?= htmlspecialchars($evolutionSettings['domain'], ENT_QUOTES, 'UTF-8') ?></small></span><i class="chevron" data-lucide="chevron-down"></i></summary>
                     <div class="project-links">
                         <?= dashboard_nav_link('/evolution-cdn/', 'house', 'Overview', $active === 'evolution-overview') ?>
+                        <?= dashboard_nav_link('/evolution-cdn/automations/', 'workflow', 'Automations', $active === 'evolution-automations') ?>
+                        <?= dashboard_nav_link('/evolution-cdn/files/', 'folder-cog', 'File Management', $active === 'evolution-files') ?>
+                        <?= dashboard_nav_link('/evolution-cdn/access-logs/', 'list-filter', 'Access Logs', $active === 'evolution-access') ?>
                         <?= dashboard_nav_link('/evolution-cdn/database/', 'database', 'Database', $active === 'evolution-database') ?>
                         <?= dashboard_nav_link('/evolution-cdn/settings/', 'settings', 'Settings', $active === 'evolution-settings') ?>
                     </div>
