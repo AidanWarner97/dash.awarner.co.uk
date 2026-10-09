@@ -17,3 +17,9 @@ The CDN database user needs `CREATE`, `SELECT`, `INSERT`, and `UPDATE` permissio
 Configure the Storage Zone, regional API hostname, region, CDN hostname, and Storage Zone access key on **Evolution X CDN > Settings**. Use the Storage Zone password, not the Bunny account API key.
 
 Bucket uploads are limited to 512 MB through the dashboard. Larger release files should continue through the CDN automation workers.
+
+## Health monitoring
+
+The dashboard uses `https://cdn.evolution-x.org/api/health` when Cloudflare permits machine requests. If the endpoint is challenged, the monitor automatically runs direct checks for MariaDB, Bunny Storage, source files, manifests, workers, and PHP instead.
+
+For full origin health data without weakening the public Cloudflare policy, set `EVOLUTION_CDN_HEALTH_URL` to an internal endpoint available only to the dashboard host, for example `http://127.0.0.1/api/health`. The internal web server must route that address to the Evolution X CDN application.
