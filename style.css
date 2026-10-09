@@ -262,7 +262,6 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
 .health-details small { color: var(--muted); font-size: 0.52rem; text-transform: uppercase; }
 .health-details strong { margin-top: 0.25rem; font-size: 0.64rem; }
 .health-no-details { margin: 0; padding: 0.8rem 1.2rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.62rem; }
-.rate-limit-settings-card { min-height: 0; max-width: none; margin-top: 1rem; padding: 0; }
 .automation-table-card { min-height: 0; padding: 0; overflow: hidden; }
 .automation-row { display: grid; grid-template-columns: auto minmax(16rem, 1fr) minmax(14rem, auto) auto; gap: 1rem; align-items: center; padding: 0.9rem 1.2rem; border-top: 1px solid var(--line); }
 .automation-row:hover { background: var(--panel-dark); }
@@ -306,7 +305,6 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
 .bucket-name a, .bucket-name strong { display: block; overflow: hidden; color: var(--text); font-size: 0.72rem; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
 .bucket-name small { display: block; margin-top: 0.2rem; color: var(--muted); font-size: 0.58rem; }
 .bucket-size { color: var(--muted); font-size: 0.65rem; text-align: right; }
-.bunny-settings-card { max-width: none; padding: 0; }
 .access-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .access-filters { display: grid; grid-template-columns: minmax(16rem, 1fr) repeat(2, auto) repeat(2, minmax(9rem, auto)) auto auto; gap: 0.65rem; align-items: end; margin-bottom: 1rem; }
 .access-filters > label:not(.search-field) { display: grid; gap: 0.35rem; color: var(--muted); font-size: 0.58rem; font-weight: 700; text-transform: uppercase; }
@@ -389,8 +387,29 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
 .response-delivery { display: flex; align-items: flex-start; gap: 0.5rem; margin: 0; color: var(--muted); font-size: 0.6rem; line-height: 1.5; }
 .response-delivery svg { width: 0.9rem; margin-top: 0.1rem; color: var(--accent); }
 .audit-card { margin-top: 1rem; }
-.settings-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .settings-card { min-height: 0; padding: 0; }
+.settings-accordion-list { display: grid; gap: 0; }
+.settings-extension-list { margin-top: 0; }
+.settings-accordion { overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+.settings-accordion-list > .settings-accordion, .settings-extension-list > .settings-accordion { border-bottom: 0; border-radius: 0; }
+.settings-accordion-list > .settings-accordion:first-of-type { border-radius: var(--radius) var(--radius) 0 0; }
+.settings-accordion-complete > .settings-accordion:last-of-type, .settings-extension-list > .settings-accordion:last-of-type { border-bottom: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+.settings-accordion > summary { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 0.8rem; align-items: center; padding: 0.9rem 1.1rem; cursor: pointer; list-style: none; }
+.settings-accordion > summary::-webkit-details-marker { display: none; }
+.settings-accordion > summary:hover { background: var(--panel-dark); }
+.settings-accordion > summary > span:nth-child(2) { min-width: 0; }
+.settings-accordion > summary strong, .settings-accordion > summary small { display: block; }
+.settings-accordion > summary strong { font-size: 0.75rem; }
+.settings-accordion > summary small { margin-top: 0.2rem; overflow: hidden; color: var(--muted); font-size: 0.58rem; text-overflow: ellipsis; white-space: nowrap; }
+.settings-accordion-icon { display: grid; width: 2.1rem; height: 2.1rem; place-items: center; border: 1px solid var(--line); border-radius: var(--radius); color: var(--accent); background: var(--base); }
+.settings-accordion-icon svg, .settings-chevron { width: 0.95rem; }
+.settings-chevron { color: var(--muted); transition: transform 180ms ease; }
+.settings-accordion > summary > .settings-chevron { grid-column: 4; }
+.settings-accordion[open] > summary { border-bottom: 1px solid var(--line); }
+.settings-accordion[open] > summary .settings-chevron { transform: rotate(180deg); }
+.settings-accordion-body { display: block; }
+.settings-accordion-body .settings-actions { padding: 0 1.2rem 1.2rem; }
+.settings-page-actions { display: flex; justify-content: flex-end; padding-top: 0.25rem; }
 .settings-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; padding: 1.2rem; }
 .settings-fields label { display: grid; align-content: start; gap: 0.4rem; color: var(--muted); font-size: 0.68rem; font-weight: 700; }
 .settings-fields .wide { grid-column: 1 / -1; }
@@ -598,7 +617,9 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
     .log-row { grid-template-columns: auto minmax(0, 1fr) auto auto; }
     .log-row > span:nth-child(3), .log-download, .log-row time { display: none; }
     .feedback-detail-grid { grid-template-columns: 1fr; }
-    .settings-layout { grid-template-columns: 1fr; }
+    .settings-accordion > summary { grid-template-columns: auto minmax(0, 1fr) auto; }
+    .settings-accordion > summary .connection-state { display: none; }
+    .settings-accordion > summary > .settings-chevron { grid-column: 3; }
     .catalogue-layout { grid-template-columns: 1fr; }
     .access-filters { grid-template-columns: 1fr 1fr; }
     .access-filters .search-field { grid-column: 1 / -1; }
@@ -643,6 +664,9 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
     .message-meta { grid-template-columns: 1fr; }
     .settings-fields { grid-template-columns: 1fr; padding: 1rem; }
     .settings-fields .wide { grid-column: auto; }
+    .settings-accordion > summary { padding-inline: 0.8rem; }
+    .settings-accordion-body .settings-actions { align-items: stretch; flex-direction: column-reverse; padding: 0 1rem 1rem; }
+    .settings-accordion-body .settings-actions .primary-button, .settings-accordion-body .settings-actions .secondary-button, .settings-page-actions .primary-button { width: 100%; }
     .settings-actions .primary-button { width: 100%; }
     .catalogue-storage-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .catalogue-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }

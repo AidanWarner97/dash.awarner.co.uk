@@ -86,6 +86,22 @@ function evolution_health_endpoint(): string
     return $url;
 }
 
+function evolution_health_configured_endpoint(): string
+{
+    return trim((string) (getenv('EVOLUTION_CDN_HEALTH_URL') ?: ''));
+}
+
+function evolution_health_save_settings(array $input): void
+{
+    if (!updates_writes_enabled()) throw new RuntimeException('Health monitor changes are disabled.');
+    $url = trim((string) ($input['health_url'] ?? ''));
+    if ($url !== '' && (!filter_var($url, FILTER_VALIDATE_URL) || !in_array(parse_url($url, PHP_URL_SCHEME), ['http', 'https'], true))) {
+        throw new InvalidArgumentException('Enter a valid HTTP or HTTPS health endpoint URL.');
+    }
+    project_settings_write_environment(['EVOLUTION_CDN_HEALTH_URL' => $url]);
+    @unlink(evolution_health_cache_file());
+}
+
 function evolution_health_local(string $remoteError, int $responseMilliseconds): array
 {
     $started = microtime(true);
