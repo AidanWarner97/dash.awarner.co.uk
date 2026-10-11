@@ -16,9 +16,11 @@ function dashboard_header(string $title, string $active = 'dashboard', ?string $
     $tileOpen = $project === 'tileimagegen';
     $portfolioOpen = $project === 'portfolio';
     $evolutionOpen = $project === 'evolutioncdn';
+    $discordBotsOpen = $project === 'discordbots';
     $tileSettings = project_settings('tileimagegen');
     $portfolioSettings = project_settings('portfolio');
     $evolutionSettings = project_settings('evolutioncdn');
+    $discordBotsSettings = project_settings('discordbots');
     ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -83,6 +85,14 @@ function dashboard_header(string $title, string $active = 'dashboard', ?string $
                         <?= dashboard_nav_link('/evolution-cdn/access-logs/', 'list-filter', 'Access Logs', $active === 'evolution-access') ?>
                         <?= dashboard_nav_link('/evolution-cdn/database/', 'database', 'Database', $active === 'evolution-database') ?>
                         <?= dashboard_nav_link('/evolution-cdn/settings/', 'settings', 'Settings', $active === 'evolution-settings') ?>
+                    </div>
+                </details>
+                <details class="project-group"<?= $discordBotsOpen ? ' open' : '' ?>>
+                    <summary><span class="project-icon discord-bots-icon"><i data-lucide="<?= htmlspecialchars($discordBotsSettings['icon'], ENT_QUOTES, 'UTF-8') ?>"></i></span><span><strong><?= htmlspecialchars($discordBotsSettings['title'], ENT_QUOTES, 'UTF-8') ?></strong><small><?= htmlspecialchars($discordBotsSettings['domain'], ENT_QUOTES, 'UTF-8') ?></small></span><i class="chevron" data-lucide="chevron-down"></i></summary>
+                    <div class="project-links">
+                        <?= dashboard_nav_link('/discord-bots/', 'house', 'Overview', $active === 'discord-bots-overview') ?>
+                        <?= dashboard_nav_link('/discord-bots/health/', 'heart-pulse', 'Health Monitor', $active === 'discord-bots-health') ?>
+                        <?= dashboard_nav_link('/discord-bots/settings/', 'settings', 'Settings', $active === 'discord-bots-settings') ?>
                     </div>
                 </details>
             </nav>

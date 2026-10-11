@@ -97,6 +97,7 @@ svg { width: 1.1rem; height: 1.1rem; flex: 0 0 auto; }
 .tile-icon { color: var(--accent); }
 .portfolio-icon { color: var(--base-dark); background: var(--text); }
 .evolution-icon { color: #a6e3a1; background: #26362f; border-color: #4d705c; }
+.discord-bots-icon { color: #f9e2af; background: #3b3440; border-color: #806f89; }
 .chevron { width: 0.9rem; color: var(--muted); transition: transform 150ms; }
 .project-group[open] .chevron { transform: rotate(180deg); }
 .project-links { display: grid; gap: 0.15rem; margin: 0.25rem 0 0.65rem 1.65rem; padding-left: 1rem; border-left: 2px solid var(--line); }

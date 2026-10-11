@@ -36,7 +36,25 @@ function project_definitions(): array
                 'root' => '/mnt/c/users/aidan/documents/git/evo/cdn.evolution-x.org',
             ],
         ],
+        'discordbots' => [
+            'prefix' => 'DISCORD_BOTS',
+            'direct_database' => false,
+            'defaults' => [
+                'title' => 'Evolution X Discord Bots',
+                'domain' => 'mm-dashboard.evolution-x.org',
+                'icon' => 'bot',
+                'description' => 'Monitor Bender, Scruffy, Professor, and their shared services.',
+                'root' => '/home/aidan/git/evo-discord-bots',
+            ],
+        ],
     ];
+}
+
+function project_has_direct_database(string $project): bool
+{
+    $definition = project_definitions()[$project] ?? null;
+    if ($definition === null) throw new InvalidArgumentException('Unknown project.');
+    return ($definition['direct_database'] ?? true) === true;
 }
 
 function project_settings(string $project): array
@@ -73,6 +91,7 @@ function project_icon_options(): array
         'code-2' => 'Code',
         'layers-3' => 'Layers',
         'cloud-download' => 'Cloud download',
+        'bot' => 'Bot',
     ];
 }
 
@@ -118,14 +137,18 @@ function project_settings_save(string $project, array $input): void
         $prefix . '_ICON' => $icon,
         $prefix . '_DESCRIPTION' => trim((string) ($input['description'] ?? '')),
         $prefix . '_ROOT' => $root,
-        $prefix . '_DB_DSN' => $dsn,
-        $prefix . '_DB_NAME' => $databaseName,
-        $prefix . '_DB_TABLE_PREFIX' => $tablePrefix,
-        $prefix . '_DB_USER' => trim((string) ($input['db_user'] ?? '')),
     ];
-    $password = (string) ($input['db_password'] ?? '');
-    if ($password !== '') {
-        $changes[$prefix . '_DB_PASSWORD'] = $password;
+    if (project_has_direct_database($project)) {
+        $changes += [
+            $prefix . '_DB_DSN' => $dsn,
+            $prefix . '_DB_NAME' => $databaseName,
+            $prefix . '_DB_TABLE_PREFIX' => $tablePrefix,
+            $prefix . '_DB_USER' => trim((string) ($input['db_user'] ?? '')),
+        ];
+        $password = (string) ($input['db_password'] ?? '');
+        if ($password !== '') {
+            $changes[$prefix . '_DB_PASSWORD'] = $password;
+        }
     }
 
     project_settings_write_environment($changes);
@@ -217,7 +240,8 @@ function project_database_table(string $project, string $baseName): string
 function render_project_settings(string $project, bool $renderSaveAction = true): void
 {
     $settings = project_settings($project);
-    $status = project_database_status($project);
+    $hasDirectDatabase = project_has_direct_database($project);
+    $status = $hasDirectDatabase ? project_database_status($project) : null;
     $hasError = !empty($GLOBALS['project_settings_error']);
     $escape = static fn(mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
     ?>
@@ -234,14 +258,14 @@ function render_project_settings(string $project, bool $renderSaveAction = true)
                 <label class="wide">Description<textarea name="description" maxlength="240" rows="3"><?= $escape($settings['description']) ?></textarea></label>
                 <label class="wide">Source directory<input name="root" value="<?= $escape($settings['root']) ?>" placeholder="/var/www/project"></label>
             </div></div></details>
-            <details class="settings-accordion"<?= $hasError ? ' open' : '' ?>><summary><span class="settings-accordion-icon"><i data-lucide="database"></i></span><span><strong>Database Connection</strong><small>MariaDB access and table scope</small></span><span class="connection-state <?= $escape($status['state']) ?>"><i></i><?= $escape($status['state'] === 'connected' ? 'Connected' : 'Not connected') ?></span><i class="settings-chevron" data-lucide="chevron-down"></i></summary><div class="settings-accordion-body"><div class="settings-fields">
+            <?php if ($hasDirectDatabase): ?><details class="settings-accordion"<?= $hasError ? ' open' : '' ?>><summary><span class="settings-accordion-icon"><i data-lucide="database"></i></span><span><strong>Database Connection</strong><small>MariaDB access and table scope</small></span><span class="connection-state <?= $escape($status['state']) ?>"><i></i><?= $escape($status['state'] === 'connected' ? 'Connected' : 'Not connected') ?></span><i class="settings-chevron" data-lucide="chevron-down"></i></summary><div class="settings-accordion-body"><div class="settings-fields">
                 <p class="settings-help wide"><?= $escape($status['message']) ?></p>
                 <label class="wide">DSN<input name="db_dsn" value="<?= $escape($settings['db_dsn']) ?>" placeholder="mysql:host=127.0.0.1;port=3306;charset=utf8mb4"></label>
                 <label>Database name<input name="db_name" value="<?= $escape($settings['db_name']) ?>"></label>
                 <label>Username<input name="db_user" autocomplete="username" value="<?= $escape($settings['db_user']) ?>"></label>
                 <label class="wide">Table prefix<input name="db_table_prefix" value="<?= $escape($settings['db_table_prefix']) ?>" placeholder="Optional, for example wp_"><small>Only matching tables appear in the database browser. Leave blank to show all tables.</small></label>
                 <label class="wide">Password<input type="password" name="db_password" autocomplete="new-password" placeholder="<?= $settings['has_db_password'] ? 'Saved - leave blank to keep it' : 'Enter database password' ?>"></label>
-            </div></div></details>
+            </div></div></details><?php endif; ?>
             <?php if ($renderSaveAction): ?><div class="settings-page-actions"><button class="primary-button" type="submit"<?= updates_writes_enabled() ? '' : ' disabled' ?>><i data-lucide="save"></i>Save project settings</button></div><?php endif; ?>
         </form>
     </section>
