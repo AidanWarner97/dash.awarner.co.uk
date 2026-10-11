@@ -92,6 +92,7 @@ function dashboard_header(string $title, string $active = 'dashboard', ?string $
                     <div class="project-links">
                         <?= dashboard_nav_link('/discord-bots/', 'house', 'Overview', $active === 'discord-bots-overview') ?>
                         <?= dashboard_nav_link('/discord-bots/health/', 'heart-pulse', 'Health Monitor', $active === 'discord-bots-health') ?>
+                        <?= dashboard_nav_link('/discord-bots/management/', 'panels-top-left', 'Management', $active === 'discord-bots-management') ?>
                         <?= dashboard_nav_link('/discord-bots/settings/', 'settings', 'Settings', $active === 'discord-bots-settings') ?>
                     </div>
                 </details>

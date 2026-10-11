@@ -15,7 +15,7 @@ dashboard_header($settings['title'] . ': Overview', 'discord-bots-overview', 'di
 <section class="view active">
     <div class="section-title project-title">
         <span><small><?= $escape(strtoupper($settings['domain'])) ?></small><h1>DISCORD BOTS</h1></span>
-        <div class="title-actions"><a class="secondary-button" href="/discord-bots/health/"><i data-lucide="heart-pulse"></i>Health monitor</a><a class="primary-button" href="?refresh=1"><i data-lucide="refresh-cw"></i>Refresh</a></div>
+        <div class="title-actions"><a class="secondary-button" href="/discord-bots/management/"><i data-lucide="panels-top-left"></i>Management</a><a class="primary-button" href="?refresh=1"><i data-lucide="refresh-cw"></i>Refresh</a></div>
     </div>
     <?php if ($data['stale']): ?><div class="data-notice"><i data-lucide="clock-alert"></i><div><strong>Showing the last successful response</strong><p><?= $escape($data['error']) ?></p></div></div><?php elseif ($data['error'] !== null): ?><div class="flash error"><i data-lucide="circle-alert"></i><?= $escape($data['error']) ?> <a href="/discord-bots/settings/">Open settings</a></div><?php endif; ?>
 

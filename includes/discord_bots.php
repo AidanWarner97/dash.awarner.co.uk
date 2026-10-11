@@ -26,6 +26,11 @@ function discord_bots_cache_file(): string
     return dashboard_cache_directory() . '/discord-bots-' . substr(hash('sha256', $key), 0, 16) . '.json';
 }
 
+function discord_bots_features_cache_file(): string
+{
+    return str_replace('.json', '-features.json', discord_bots_cache_file());
+}
+
 function discord_bots_save_settings(array $input): void
 {
     if (!updates_writes_enabled()) throw new RuntimeException('Discord Bots changes are disabled.');
@@ -81,13 +86,16 @@ function discord_bots_signed_headers(string $method, string $path, string $body 
     ];
 }
 
-function discord_bots_remote_request(): array
+function discord_bots_api_get(string $endpoint): array
 {
     if (!discord_bots_remote_configured()) throw new RuntimeException('Configure the Professor management API in project settings.');
     if (!function_exists('curl_init')) throw new RuntimeException('The PHP cURL extension is unavailable.');
+    if (!in_array($endpoint, ['/api/dashboard/overview', '/api/dashboard/features'], true)) {
+        throw new InvalidArgumentException('Unsupported Professor API endpoint.');
+    }
 
-    $url = discord_bots_remote_settings()['url'] . '/api/dashboard/overview';
-    $path = (string) (parse_url($url, PHP_URL_PATH) ?: '/api/dashboard/overview');
+    $url = discord_bots_remote_settings()['url'] . $endpoint;
+    $path = (string) (parse_url($url, PHP_URL_PATH) ?: $endpoint);
     $handle = curl_init($url);
     curl_setopt_array($handle, [
         CURLOPT_RETURNTRANSFER => true,
@@ -106,11 +114,17 @@ function discord_bots_remote_request(): array
     if ($body === false) throw new RuntimeException($error !== '' ? $error : 'Professor API request failed.');
     if ($statusCode !== 200) throw new RuntimeException('Professor API returned HTTP ' . $statusCode . '.');
     $payload = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
-    if (!is_array($payload['stats'] ?? null) || !is_array($payload['services'] ?? null)) {
-        throw new RuntimeException('Professor API returned an invalid response.');
-    }
 
-    return discord_bots_normalize($payload, $responseMilliseconds);
+    return ['payload' => $payload, 'response_ms' => $responseMilliseconds];
+}
+
+function discord_bots_remote_request(): array
+{
+    $response = discord_bots_api_get('/api/dashboard/overview');
+    $payload = $response['payload'];
+    if (!is_array($payload['stats'] ?? null) || !is_array($payload['services'] ?? null)) throw new RuntimeException('Professor API returned an invalid response.');
+
+    return discord_bots_normalize($payload, $response['response_ms']);
 }
 
 function discord_bots_normalize(array $payload, int $responseMilliseconds): array
@@ -184,5 +198,77 @@ function discord_bots_overview(bool $forceRefresh = false): array
             'stale' => false,
             'error' => $error->getMessage(),
         ];
+    }
+}
+
+function discord_bots_default_features(): array
+{
+    return [
+        ['key' => 'overview', 'name' => 'Service Overview', 'description' => 'Bot status, uptime, aggregate totals, and recent activity.', 'path' => '/overview', 'category' => 'Operations', 'icon' => 'chart-no-axes-column', 'mode' => 'View'],
+        ['key' => 'applications', 'name' => 'Applications', 'description' => 'Review all maintainer applications and their current status.', 'path' => '/applications', 'category' => 'Applications', 'icon' => 'files', 'mode' => 'Manage'],
+        ['key' => 'applicants', 'name' => 'Applicants', 'description' => 'Inspect applicant history, eligibility, and reapply state.', 'path' => '/applicants', 'category' => 'Applications', 'icon' => 'user-round-search', 'mode' => 'Manage'],
+        ['key' => 'questions', 'name' => 'Application Questions', 'description' => 'Create, reorder, validate, and remove application questions.', 'path' => '/questions', 'category' => 'Applications', 'icon' => 'list-checks', 'mode' => 'Manage'],
+        ['key' => 'users', 'name' => 'Users', 'description' => 'Browse Discord users, access level, and block state.', 'path' => '/users', 'category' => 'Access Control', 'icon' => 'users', 'mode' => 'Manage'],
+        ['key' => 'group-permissions', 'name' => 'Group Permissions', 'description' => 'Configure command permissions for each access level.', 'path' => '/group-permissions', 'category' => 'Access Control', 'icon' => 'shield-check', 'mode' => 'Manage'],
+        ['key' => 'abuse', 'name' => 'Abuse Logs', 'description' => 'Review and resolve recorded abuse and policy violations.', 'path' => '/abuse', 'category' => 'Access Control', 'icon' => 'shield-alert', 'mode' => 'Manage'],
+        ['key' => 'cache', 'name' => 'Cache Management', 'description' => 'Inspect, clear, and refresh bot data caches.', 'path' => '/cache', 'category' => 'Operations', 'icon' => 'database-zap', 'mode' => 'Manage'],
+        ['key' => 'privacy-requests', 'name' => 'Privacy Requests', 'description' => 'Process privacy requests and record staff outcomes.', 'path' => '/privacy-requests', 'category' => 'Operations', 'icon' => 'user-round-check', 'mode' => 'Manage'],
+        ['key' => 'action-logs', 'name' => 'User Action Logs', 'description' => 'Audit recorded user and staff actions.', 'path' => '/logs-actions', 'category' => 'Logs', 'icon' => 'list-restart', 'mode' => 'View'],
+        ['key' => 'system-logs', 'name' => 'System Logs', 'description' => 'Inspect Bender, Scruffy, and Professor service logs.', 'path' => '/logs-system', 'category' => 'Logs', 'icon' => 'scroll-text', 'mode' => 'View'],
+    ];
+}
+
+function discord_bots_normalize_features(array $features): array
+{
+    $normalized = [];
+    foreach ($features as $feature) {
+        if (!is_array($feature)) continue;
+        $path = (string) ($feature['path'] ?? '');
+        $icon = (string) ($feature['icon'] ?? 'circle-dot');
+        if (!str_starts_with($path, '/') || str_starts_with($path, '//')) continue;
+        if (preg_match('/^[a-z0-9-]+$/', $icon) !== 1) $icon = 'circle-dot';
+        $normalized[] = [
+            'key' => (string) ($feature['key'] ?? ''),
+            'name' => (string) ($feature['name'] ?? 'Unknown feature'),
+            'description' => (string) ($feature['description'] ?? ''),
+            'path' => $path,
+            'category' => (string) ($feature['category'] ?? 'Other'),
+            'icon' => $icon,
+            'mode' => in_array(($feature['mode'] ?? ''), ['View', 'Manage'], true) ? $feature['mode'] : 'View',
+        ];
+    }
+    return $normalized;
+}
+
+function discord_bots_feature_url(string $path): string
+{
+    if (!str_starts_with($path, '/') || str_starts_with($path, '//')) throw new InvalidArgumentException('Invalid Professor feature path.');
+    $baseUrl = discord_bots_remote_settings()['url'];
+    if ($baseUrl === '') $baseUrl = 'https://' . project_settings('discordbots')['domain'];
+    return $baseUrl . $path;
+}
+
+function discord_bots_features(bool $forceRefresh = false): array
+{
+    $cacheFile = discord_bots_features_cache_file();
+    $cached = is_readable($cacheFile) ? json_decode((string) file_get_contents($cacheFile), true) : null;
+    if (!$forceRefresh && is_array($cached) && (int) ($cached['cached_at'] ?? 0) >= time() - 300 && is_array($cached['data']['features'] ?? null)) {
+        return $cached['data'];
+    }
+
+    try {
+        $response = discord_bots_api_get('/api/dashboard/features');
+        $features = discord_bots_normalize_features((array) ($response['payload']['features'] ?? []));
+        if (!$features) throw new RuntimeException('Professor returned an empty feature catalogue.');
+        $data = ['features' => $features, 'stale' => false, 'fallback' => false, 'error' => null];
+        dashboard_cache_write($cacheFile, ['cached_at' => time(), 'data' => $data]);
+        return $data;
+    } catch (Throwable $error) {
+        if (is_array($cached['data']['features'] ?? null)) {
+            $cached['data']['stale'] = true;
+            $cached['data']['error'] = $error->getMessage();
+            return $cached['data'];
+        }
+        return ['features' => discord_bots_default_features(), 'stale' => false, 'fallback' => true, 'error' => $error->getMessage()];
     }
 }
