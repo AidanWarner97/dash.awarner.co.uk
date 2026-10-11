@@ -46,6 +46,11 @@ function auth_ensure_tables(?PDO $database = null): void
         updated_at DATETIME NOT NULL,
         last_login_at DATETIME NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    $discordIdColumn = $database->prepare('SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = "dashboard_users" AND COLUMN_NAME = "discord_user_id"');
+    $discordIdColumn->execute();
+    if ((int) $discordIdColumn->fetchColumn() === 0) {
+        $database->exec('ALTER TABLE dashboard_users ADD COLUMN discord_user_id VARCHAR(20) NULL UNIQUE AFTER display_name');
+    }
     $database->exec('CREATE TABLE IF NOT EXISTS dashboard_passkeys (
         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         user_id CHAR(64) NOT NULL,
@@ -201,7 +206,7 @@ function auth_current_user(): ?array
 
     $database = auth_database();
     auth_ensure_tables($database);
-    $statement = $database->prepare('SELECT id, email, display_name, role, active, created_at, last_login_at FROM dashboard_users WHERE id = :id AND active = 1 LIMIT 1');
+    $statement = $database->prepare('SELECT id, email, display_name, discord_user_id, role, active, created_at, last_login_at FROM dashboard_users WHERE id = :id AND active = 1 LIMIT 1');
     $statement->execute([':id' => $userId]);
     $user = $statement->fetch();
     if (!is_array($user)) {
@@ -243,7 +248,26 @@ function auth_list_users(): array
 {
     $database = auth_database();
     auth_ensure_tables($database);
-    return $database->query('SELECT id, email, display_name, role, active, created_at, last_login_at FROM dashboard_users ORDER BY display_name, email')->fetchAll();
+    return $database->query('SELECT id, email, display_name, discord_user_id, role, active, created_at, last_login_at FROM dashboard_users ORDER BY display_name, email')->fetchAll();
+}
+
+function auth_update_discord_user_id(string $userId, string $discordUserId): void
+{
+    $discordUserId = trim($discordUserId);
+    if ($discordUserId !== '' && preg_match('/^[0-9]{15,20}$/', $discordUserId) !== 1) throw new InvalidArgumentException('Enter a valid Discord user ID.');
+    $database = auth_database();
+    auth_ensure_tables($database);
+    try {
+        $statement = $database->prepare('UPDATE dashboard_users SET discord_user_id = :discord_user_id, updated_at = NOW() WHERE id = :id');
+        $statement->bindValue(':discord_user_id', $discordUserId !== '' ? $discordUserId : null, $discordUserId !== '' ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $statement->bindValue(':id', $userId);
+        $statement->execute();
+    } catch (PDOException $error) {
+        if ((string) $error->getCode() === '23000') throw new InvalidArgumentException('That Discord user ID is already linked to another administrator.', 0, $error);
+        throw $error;
+    }
+    auth_start_session();
+    unset($_SESSION['dashboard_user_cache']);
 }
 
 function auth_change_password(string $userId, string $currentPassword, string $newPassword): void

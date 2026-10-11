@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/project_settings.php';
+require_once __DIR__ . '/auth.php';
 
 function discord_bots_remote_settings(): array
 {
@@ -67,12 +68,14 @@ function discord_bots_signed_headers(string $method, string $path, string $body 
 
     $timestamp = (string) time();
     $nonce = bin2hex(random_bytes(16));
+    $actor = (string) (auth_current_user()['discord_user_id'] ?? '');
     $dailySecret = hash_hmac('sha256', $settings['identifier'] . '-' . gmdate('Y-m-d'), $secret);
     $canonicalRequest = implode("\n", [
         strtoupper($method),
         $path,
         $timestamp,
         $nonce,
+        $actor,
         hash('sha256', $body),
     ]);
     $signature = hash_hmac('sha256', $canonicalRequest, $dailySecret);
@@ -82,26 +85,44 @@ function discord_bots_signed_headers(string $method, string $path, string $body 
         'X-Evox-Identifier: ' . $settings['identifier'],
         'X-Evox-Timestamp: ' . $timestamp,
         'X-Evox-Nonce: ' . $nonce,
+        'X-Evox-Actor: ' . $actor,
         'X-Evox-Signature: ' . $signature,
     ];
 }
 
 function discord_bots_api_get(string $endpoint): array
 {
+    return discord_bots_management_request('GET', $endpoint, null, false);
+}
+
+function discord_bots_management_request(string $method, string $endpoint, ?array $payload = null, bool $requireActor = true): array
+{
     if (!discord_bots_remote_configured()) throw new RuntimeException('Configure the Professor management API in project settings.');
     if (!function_exists('curl_init')) throw new RuntimeException('The PHP cURL extension is unavailable.');
-    if (!in_array($endpoint, ['/api/dashboard/overview', '/api/dashboard/features'], true)) {
-        throw new InvalidArgumentException('Unsupported Professor API endpoint.');
-    }
+    $method = strtoupper($method);
+    $path = (string) (parse_url($endpoint, PHP_URL_PATH) ?: '');
+    $allowed = [
+        'GET' => ['#^/api/dashboard/(overview|features)$#', '#^/api/(applications|applicants|users|abuse|questions|logs|cache|privacy-requests)$#', '#^/api/applicants/[0-9]+$#', '#^/api/users/[0-9]+$#', '#^/api/users/[0-9]+/action-permissions$#', '#^/api/group-action-permissions/[0-3]$#', '#^/api/action-permission-templates$#'],
+        'POST' => ['#^/api/questions$#', '#^/api/action-permission-templates$#', '#^/api/abuse/[0-9]+/ignore$#', '#^/api/applicants/[0-9]+/override-reapply$#', '#^/api/cache/refresh/(maintainers|devices|donations|all)$#'],
+        'PUT' => ['#^/api/users/[0-9]+$#', '#^/api/users/[0-9]+/action-permissions$#', '#^/api/group-action-permissions/[0-3]$#', '#^/api/privacy-requests/[A-Za-z0-9-]+$#'],
+        'DELETE' => ['#^/api/users/[0-9]+$#', '#^/api/cache/[A-Za-z0-9._/-]+$#'],
+    ];
+    if (!isset($allowed[$method]) || !array_filter($allowed[$method], static fn(string $pattern): bool => preg_match($pattern, $path) === 1)) throw new InvalidArgumentException('Unsupported Professor API operation.');
+    if ($requireActor && trim((string) (auth_current_user()['discord_user_id'] ?? '')) === '') throw new RuntimeException('Link your Discord user ID in Account settings before using bot management.');
 
     $url = discord_bots_remote_settings()['url'] . $endpoint;
-    $path = (string) (parse_url($url, PHP_URL_PATH) ?: $endpoint);
+    $signedPath = (string) (parse_url($url, PHP_URL_PATH) ?: $path);
+    $body = $payload === null ? '' : json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
     $handle = curl_init($url);
+    $headers = discord_bots_signed_headers($method, $signedPath, $body);
+    if ($body !== '') $headers[] = 'Content-Type: application/json';
     curl_setopt_array($handle, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_CONNECTTIMEOUT => 4,
         CURLOPT_TIMEOUT => 12,
-        CURLOPT_HTTPHEADER => discord_bots_signed_headers('GET', $path),
+        CURLOPT_CUSTOMREQUEST => $method,
+        CURLOPT_POSTFIELDS => $body !== '' ? $body : null,
+        CURLOPT_HTTPHEADER => $headers,
         CURLOPT_USERAGENT => 'AWarnerDashboard/1.0',
     ]);
     $started = microtime(true);
@@ -115,7 +136,7 @@ function discord_bots_api_get(string $endpoint): array
     if ($statusCode !== 200) throw new RuntimeException('Professor API returned HTTP ' . $statusCode . '.');
     $payload = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
 
-    return ['payload' => $payload, 'response_ms' => $responseMilliseconds];
+    return ['payload' => $payload, 'response_ms' => $responseMilliseconds, 'status_code' => $statusCode];
 }
 
 function discord_bots_remote_request(): array
@@ -271,4 +292,102 @@ function discord_bots_features(bool $forceRefresh = false): array
         }
         return ['features' => discord_bots_default_features(), 'stale' => false, 'fallback' => true, 'error' => $error->getMessage()];
     }
+}
+
+function discord_bots_management_data(string $feature, array $query = []): array
+{
+    if ($feature === 'user-permissions') {
+        $userId = discord_bots_numeric_id((string) ($query['user_id'] ?? ''));
+        return discord_bots_management_request('GET', '/api/users/' . $userId . '/action-permissions')['payload'];
+    }
+    if ($feature === 'applicant-detail') {
+        $userId = discord_bots_numeric_id((string) ($query['user_id'] ?? ''));
+        return discord_bots_management_request('GET', '/api/applicants/' . $userId)['payload'];
+    }
+    $endpoints = [
+        'applications' => '/api/applications',
+        'applicants' => '/api/applicants',
+        'questions' => '/api/questions',
+        'users' => '/api/users',
+        'group-permissions' => '/api/group-action-permissions/' . max(0, min(3, (int) ($query['level'] ?? 3))),
+        'abuse' => '/api/abuse',
+        'cache' => '/api/cache',
+        'privacy-requests' => '/api/privacy-requests',
+        'action-logs' => '/api/logs?page=1&limit=100',
+        'system-logs' => '/api/logs?page=1&limit=100',
+        'permission-templates' => '/api/action-permission-templates',
+    ];
+    if (!isset($endpoints[$feature])) throw new InvalidArgumentException('Unknown Professor management feature.');
+    return discord_bots_management_request('GET', $endpoints[$feature])['payload'];
+}
+
+function discord_bots_management_action(string $action, array $input): string
+{
+    if (!updates_writes_enabled()) throw new RuntimeException('Discord Bots changes are disabled.');
+    switch ($action) {
+        case 'save_questions':
+            $questions = json_decode((string) ($input['questions_json'] ?? ''), true, 128, JSON_THROW_ON_ERROR);
+            if (!is_array($questions)) throw new InvalidArgumentException('Enter a valid questions array.');
+            discord_bots_management_request('POST', '/api/questions', ['questions' => $questions]);
+            return 'Application questions saved.';
+        case 'update_user':
+            $userId = discord_bots_numeric_id((string) ($input['user_id'] ?? ''));
+            discord_bots_management_request('PUT', '/api/users/' . $userId, [
+                'permission_level' => max(0, min(3, (int) ($input['permission_level'] ?? 0))),
+                'is_blocked' => isset($input['is_blocked']),
+                'blocked_until' => trim((string) ($input['blocked_until'] ?? '')) ?: null,
+            ]);
+            return 'User access updated.';
+        case 'delete_user':
+            discord_bots_management_request('DELETE', '/api/users/' . discord_bots_numeric_id((string) ($input['user_id'] ?? '')));
+            return 'User deleted.';
+        case 'save_group_permissions':
+            $level = max(0, min(3, (int) ($input['permission_level'] ?? 3)));
+            $current = discord_bots_management_request('GET', '/api/group-action-permissions/' . $level)['payload']['actions'] ?? [];
+            $allowed = array_map('strval', (array) ($input['allowed_actions'] ?? []));
+            $actions = array_map(static fn(array $item): array => ['action' => (string) $item['action'], 'allowed' => in_array((string) $item['action'], $allowed, true)], $current);
+            discord_bots_management_request('PUT', '/api/group-action-permissions/' . $level, ['actions' => $actions]);
+            return 'Group permissions saved.';
+        case 'save_user_permissions':
+            $userId = discord_bots_numeric_id((string) ($input['user_id'] ?? ''));
+            $current = discord_bots_management_request('GET', '/api/users/' . $userId . '/action-permissions')['payload']['actions'] ?? [];
+            $allowed = array_map('strval', (array) ($input['allowed_actions'] ?? []));
+            $actions = array_map(static fn(array $item): array => ['action' => (string) $item['action'], 'allowed' => in_array((string) $item['action'], $allowed, true)], $current);
+            discord_bots_management_request('PUT', '/api/users/' . $userId . '/action-permissions', ['actions' => $actions]);
+            return 'User command permissions saved.';
+        case 'save_permission_templates':
+            $templates = json_decode((string) ($input['templates_json'] ?? ''), true, 128, JSON_THROW_ON_ERROR);
+            if (!is_array($templates)) throw new InvalidArgumentException('Enter a valid templates array.');
+            discord_bots_management_request('POST', '/api/action-permission-templates', ['templates' => $templates]);
+            return 'Permission templates saved.';
+        case 'resolve_abuse':
+            discord_bots_management_request('POST', '/api/abuse/' . (int) ($input['record_id'] ?? 0) . '/ignore', []);
+            return 'Abuse record resolved.';
+        case 'override_reapply':
+            discord_bots_management_request('POST', '/api/applicants/' . discord_bots_numeric_id((string) ($input['user_id'] ?? '')) . '/override-reapply', []);
+            return 'Applicant reapply cooldown overridden.';
+        case 'refresh_cache':
+            $type = (string) ($input['cache_type'] ?? '');
+            if (!in_array($type, ['maintainers', 'devices', 'donations', 'all'], true)) throw new InvalidArgumentException('Select a valid cache type.');
+            discord_bots_management_request('POST', '/api/cache/refresh/' . $type, []);
+            return ucfirst($type) . ' cache refreshed.';
+        case 'delete_cache':
+            $key = trim((string) ($input['cache_key'] ?? ''));
+            if ($key === '' || preg_match('#^[A-Za-z0-9._/-]+$#', $key) !== 1) throw new InvalidArgumentException('Invalid cache key.');
+            discord_bots_management_request('DELETE', '/api/cache/' . $key);
+            return 'Cache entry deleted.';
+        case 'update_privacy':
+            $requestId = trim((string) ($input['request_id'] ?? ''));
+            if (preg_match('/^[A-Za-z0-9-]+$/', $requestId) !== 1) throw new InvalidArgumentException('Invalid privacy request.');
+            discord_bots_management_request('PUT', '/api/privacy-requests/' . $requestId, ['status' => (string) ($input['status'] ?? ''), 'note' => (string) ($input['note'] ?? '')]);
+            return 'Privacy request updated.';
+    }
+    throw new InvalidArgumentException('Unknown management action.');
+}
+
+function discord_bots_numeric_id(string $value): string
+{
+    $value = trim($value);
+    if (preg_match('/^[0-9]{1,20}$/', $value) !== 1) throw new InvalidArgumentException('Invalid Discord user ID.');
+    return $value;
 }

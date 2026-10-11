@@ -2,18 +2,22 @@
 
 ## Architecture
 
-The dashboard does not connect to the bot MariaDB server. Professor remains the only management service with database access and exposes two allowlisted endpoints:
+The dashboard does not connect to the bot MariaDB server. Professor remains the only management service with database access and exposes narrowly scoped endpoints for:
 
-- `GET /api/dashboard/overview` for bot status and aggregate counts.
-- `GET /api/dashboard/features` for the available Professor management workflows.
+- Bot status, feature discovery, and aggregate counts.
+- Applications, applicants, questions, users, abuse records, privacy requests, cache entries, and logs.
+- Group and per-user command permissions and permission templates.
+- Explicitly validated management mutations for those resources.
 
-There is no arbitrary SQL endpoint.
+There is no arbitrary SQL endpoint and the PHP client uses a method-and-path allowlist.
 
-Requests are authenticated with HMAC-SHA256 headers covering the method, path, timestamp, nonce, and request body hash. Professor accepts requests for five minutes and records nonces to reject replays.
+Dashboard administrators continue to sign in with the dashboard's password or passkey flow. Each account links its Discord user ID under **Account > Discord Account**; a second Discord OAuth login is not required. Professor authorizes that linked identity against its own users table and requires an active, unblocked account with permission level 3 or higher.
+
+Requests are authenticated with HMAC-SHA256 headers covering the method, path, timestamp, nonce, linked Discord actor, and request body hash. Professor accepts requests for five minutes and records nonces to reject replays. Binding the actor into the signature prevents identity-header substitution and lets Professor attribute mutations to the correct administrator.
 
 ## Professor server
 
-Deploy the updated `Planet_Express` shared package and Professor application together. Set dedicated dashboard credentials in the Professor environment:
+Deploy the updated `Planet_Express` shared package and Professor application together because both sides must use the actor-bound signature format. Set dedicated dashboard credentials in the Professor environment:
 
 ```dotenv
 DASHBOARD_EXTERNAL_IDENTIFIER=awarner-dashboard
@@ -37,6 +41,10 @@ The values can be bootstrapped with `DISCORD_BOTS_API_URL`, `DISCORD_BOTS_API_ID
 
 No scheduled password update is required. Both servers derive the same short-lived UTC daily key from the shared password, then sign every request with a fresh timestamp and nonce. The dashboard caches successful responses for 30 seconds and serves the last response as stale data during a remote outage.
 
-The dashboard's **Evolution X Discord Bots > Management** page groups all Professor workflows and opens them on the Professor host. Professor continues to enforce its Discord OAuth session for those interactive pages. The feature manifest is cached for five minutes, with a built-in catalogue available until the remote endpoint is deployed.
+After signing in, link the dashboard account to the Discord ID of a Professor administrator. Each dashboard account must use a unique Discord ID.
 
-Any future database mutation should be implemented as a separately named, validated Professor endpoint with a narrow payload and audit logging. Do not add a generic query endpoint or expose MariaDB to the dashboard host.
+The dashboard's **Evolution X Discord Bots > Management** page provides native views and controls for Professor workflows. **Open Professor** remains available as a fallback and uses Professor's own Discord OAuth session. Reads require a linked authorized actor; writes additionally require dashboard CSRF validation and `DASHBOARD_ALLOW_WRITES=true`.
+
+The feature manifest is cached for five minutes, with a built-in catalogue available during a remote outage. Overview data is cached for 30 seconds and the last successful response can be shown as stale data.
+
+Any future database mutation must be implemented as a separately named, authenticated Professor endpoint with a narrow validated payload and audit logging through the signed actor. Add the exact method and path to the PHP allowlist; do not add a generic query endpoint or expose MariaDB to the dashboard host.

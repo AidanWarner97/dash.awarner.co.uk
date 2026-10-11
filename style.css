@@ -245,6 +245,42 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
 .feature-copy strong { font-size: 0.73rem; }
 .feature-copy small { margin-top: 0.25rem; color: var(--muted); font-size: 0.6rem; line-height: 1.45; }
 .feature-mode-manage { border-color: #4d705c; color: var(--success); }
+.management-card { min-height: 0; padding: 0; }
+.management-table-wrap { overflow-x: auto; }
+.management-table-wrap td strong, .management-table-wrap td small, .management-user strong, .management-user small { display: block; }
+.management-table-wrap td small, .management-user small { margin-top: 0.2rem; color: var(--muted); font-size: 0.58rem; }
+.management-detail-row td { padding-top: 0; background: var(--panel-dark); }
+.management-detail-row summary { cursor: pointer; color: var(--accent); font-size: 0.62rem; }
+.management-detail-row pre { max-height: 20rem; overflow: auto; color: var(--muted); font-size: 0.62rem; white-space: pre-wrap; }
+.management-list { display: grid; }
+.management-record, .management-inline-form { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0.8rem; min-height: 4.2rem; margin: 0; padding: 0.7rem 1.2rem; border-bottom: 1px solid var(--line); }
+.management-record:last-child, .management-inline-form:last-child { border-bottom: 0; }
+.management-record strong, .management-record small { display: block; }
+.management-record strong { font-size: 0.7rem; }
+.management-record small { margin-top: 0.25rem; color: var(--muted); font-size: 0.6rem; line-height: 1.45; }
+.management-record time { color: var(--muted); font-size: 0.58rem; }
+.management-inline-form { grid-template-columns: minmax(10rem, 1fr) auto auto auto auto; }
+.management-user-form { grid-template-columns: minmax(10rem, 1fr) auto minmax(11rem, auto) auto auto auto auto; }
+.danger-button { color: var(--danger); }
+.management-inline-form label { display: grid; gap: 0.25rem; color: var(--muted); font-size: 0.55rem; font-weight: 700; text-transform: uppercase; }
+.management-inline-form input, .management-inline-form select, .management-level-picker select { min-height: 2.5rem; padding: 0.5rem 0.65rem; border: 1px solid var(--line); border-radius: var(--radius); color: var(--text); background: var(--panel-dark); }
+.management-check { display: flex !important; align-items: center; grid-auto-flow: column; }
+.management-check input { min-height: 0; }
+.management-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-bottom: 1rem; }
+.management-actions form { margin: 0; }
+.management-editor { display: grid; gap: 1rem; padding: 1.2rem; }
+.management-editor label { display: grid; gap: 0.45rem; color: var(--muted); font-size: 0.62rem; font-weight: 700; text-transform: uppercase; }
+.management-editor textarea { width: 100%; padding: 0.8rem; border: 1px solid var(--line); border-radius: var(--radius); color: var(--text); background: var(--base-dark); font-family: monospace; font-size: 0.7rem; line-height: 1.5; }
+.management-editor .primary-button { justify-self: end; }
+.management-level-picker { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
+.management-level-picker label { display: grid; gap: 0.3rem; color: var(--muted); font-size: 0.58rem; font-weight: 700; text-transform: uppercase; }
+.permission-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.permission-grid label { display: flex; align-items: center; gap: 0.7rem; min-height: 4rem; padding: 0.7rem 1.2rem; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.permission-grid label:nth-child(2n) { border-right: 0; }
+.permission-grid strong, .permission-grid small { display: block; }
+.permission-grid strong { font-size: 0.68rem; }
+.permission-grid small { margin-top: 0.2rem; color: var(--muted); font-size: 0.56rem; text-transform: capitalize; }
+.management-card > form > .management-actions { padding: 1rem 1.2rem; border-top: 1px solid var(--line); }
 .health-overall { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; padding: 1.2rem; border: 1px solid var(--line); border-left-width: 4px; border-radius: var(--radius); background: var(--panel); }
 .health-overall.health-healthy { border-left-color: var(--success); }
 .health-overall.health-warning, .health-overall.health-building, .health-overall.health-idle { border-left-color: #f9e2af; }
@@ -647,6 +683,10 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
     .feature-list { grid-template-columns: 1fr; }
     .feature-row, .feature-row:nth-child(2n), .feature-row:nth-last-child(-n+2) { border-right: 0; border-bottom: 1px solid var(--line); }
     .feature-row:last-child { border-bottom: 0; }
+    .management-inline-form { grid-template-columns: minmax(0, 1fr) auto auto; }
+    .management-inline-form .management-user { grid-column: 1 / -1; }
+    .permission-grid { grid-template-columns: 1fr; }
+    .permission-grid label { border-right: 0; }
     .automation-schedule, .automation-row-actions { grid-column: 2; }
     .bucket-actions { grid-template-columns: 1fr; }
 }
@@ -716,6 +756,10 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
     .access-table th:nth-child(4), .access-table td:nth-child(4) { display: none; }
     .feature-row { grid-template-columns: auto minmax(0, 1fr) auto; padding-inline: 0.8rem; }
     .feature-row > .status-badge { display: none; }
+    .management-inline-form { grid-template-columns: 1fr auto; }
+    .management-inline-form > label, .management-inline-form > select, .management-inline-form > input:not([type="hidden"]) { grid-column: 1 / -1; width: 100%; }
+    .management-actions { align-items: stretch; flex-direction: column; }
+    .management-actions .secondary-button { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
