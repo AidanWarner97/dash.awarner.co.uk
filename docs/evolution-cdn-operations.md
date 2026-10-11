@@ -1,5 +1,28 @@
 # Evolution X CDN operations
 
+## Dashboard cache
+
+The overview cache is enabled automatically. In production, give the dashboard an explicit cache directory that persists across releases:
+
+```bash
+sudo install -d -o www-data -g www-data -m 0750 /var/cache/awarner-dashboard
+```
+
+Set these values in the deployed dashboard `.env`:
+
+```dotenv
+DASHBOARD_CACHE_DIR=/var/cache/awarner-dashboard
+EVOLUTION_CDN_OVERVIEW_CACHE_SECONDS=60
+```
+
+Replace `www-data` with the PHP-FPM pool user when different. The overview TTL accepts 10 to 3600 seconds. Health checks use the same directory with a fixed 30-second TTL.
+
+Verify the effective configuration as the PHP-FPM user:
+
+```bash
+sudo -u www-data php -r 'require "includes/evolutioncdn.php"; echo dashboard_cache_directory(), PHP_EOL; var_export(is_writable(dashboard_cache_directory())); echo PHP_EOL;'
+```
+
 ## Minute runner
 
 The dashboard has one CLI entry point for feedback notifications, newsletters, and Evolution X CDN automations. Run it once every minute as the dashboard application user:

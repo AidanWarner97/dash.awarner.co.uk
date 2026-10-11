@@ -55,7 +55,7 @@ function evolutioncdn_overview_cache_file(int $days): string
 {
     $settings = project_settings('evolutioncdn');
     $identity = hash('sha256', implode('|', [$settings['db_dsn'], $settings['db_name'], $settings['db_table_prefix'], $settings['root']]));
-    return sys_get_temp_dir() . '/dashboard-evolution-overview-' . substr($identity, 0, 16) . '-' . $days . '.json';
+    return dashboard_cache_directory() . '/evolution-overview-' . substr($identity, 0, 16) . '-' . $days . '.json';
 }
 
 function evolutioncdn_overview_cache_ttl(): int
@@ -75,11 +75,7 @@ function evolutioncdn_overview_data(int $requestedDays = 7): array
 
     try {
         $data = evolutioncdn_overview_uncached($days);
-        $payload = json_encode(['cached_at' => time(), 'data' => $data], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
-        $temporary = $cacheFile . '.' . bin2hex(random_bytes(6)) . '.tmp';
-        if (file_put_contents($temporary, $payload, LOCK_EX) !== false) {
-            if (!rename($temporary, $cacheFile)) @unlink($temporary);
-        }
+        dashboard_cache_write($cacheFile, ['cached_at' => time(), 'data' => $data]);
         return $data;
     } catch (Throwable $error) {
         if (is_array($cached['data'] ?? null)) return $cached['data'];

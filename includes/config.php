@@ -22,6 +22,29 @@ function load_dashboard_environment(string $file): void
 
 load_dashboard_environment(dirname(__DIR__) . '/.env');
 
+function dashboard_cache_directory(): string
+{
+    $configured = trim((string) (getenv('DASHBOARD_CACHE_DIR') ?: ''));
+    $directory = $configured !== '' ? $configured : sys_get_temp_dir();
+    if (!is_dir($directory) && !mkdir($directory, 0750, true) && !is_dir($directory)) {
+        throw new RuntimeException('The dashboard cache directory could not be created.');
+    }
+    if (!is_writable($directory)) {
+        throw new RuntimeException('The dashboard cache directory is not writable.');
+    }
+    return rtrim($directory, DIRECTORY_SEPARATOR);
+}
+
+function dashboard_cache_write(string $file, array $payload): void
+{
+    $encoded = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+    $temporary = $file . '.' . bin2hex(random_bytes(6)) . '.tmp';
+    if (file_put_contents($temporary, $encoded, LOCK_EX) === false || !rename($temporary, $file)) {
+        @unlink($temporary);
+        throw new RuntimeException('The dashboard cache could not be written.');
+    }
+}
+
 function tileimagegen_root(): ?string
 {
     $root = trim((string) (getenv('TILEIMAGEGEN_ROOT') ?: ''));

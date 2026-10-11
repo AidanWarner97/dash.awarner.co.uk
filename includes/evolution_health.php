@@ -8,7 +8,7 @@ require_once __DIR__ . '/evolution_bunny.php';
 function evolution_health_cache_file(): string
 {
     $domain = project_settings('evolutioncdn')['domain'];
-    return sys_get_temp_dir() . '/dashboard-evolution-health-' . substr(hash('sha256', $domain), 0, 16) . '.json';
+    return dashboard_cache_directory() . '/evolution-health-' . substr(hash('sha256', $domain), 0, 16) . '.json';
 }
 
 function evolution_health_status(string $status): string
@@ -202,11 +202,7 @@ function evolution_health_monitor(bool $forceRefresh = false): array
             $decoded = json_decode($request['body'], true, 512, JSON_THROW_ON_ERROR);
             $data = evolution_health_normalize($decoded, $request['milliseconds']);
         }
-        $payload = json_encode(['cached_at' => time(), 'data' => $data], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
-        $temporary = $cacheFile . '.' . bin2hex(random_bytes(6)) . '.tmp';
-        if (file_put_contents($temporary, $payload, LOCK_EX) !== false) {
-            if (!rename($temporary, $cacheFile)) @unlink($temporary);
-        }
+        dashboard_cache_write($cacheFile, ['cached_at' => time(), 'data' => $data]);
         return $data;
     } catch (Throwable $error) {
         if (is_array($cached['data'] ?? null)) {
