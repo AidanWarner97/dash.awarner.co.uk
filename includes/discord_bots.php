@@ -296,6 +296,17 @@ function discord_bots_features(bool $forceRefresh = false): array
 
 function discord_bots_management_data(string $feature, array $query = []): array
 {
+    if ($feature === 'application-detail') {
+        $applicationId = filter_var($query['application_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        if ($applicationId === false) throw new InvalidArgumentException('Invalid application ID.');
+        $applications = discord_bots_management_request('GET', '/api/applications')['payload']['applications'] ?? [];
+        foreach ($applications as $application) {
+            if ((int) ($application['id'] ?? 0) !== $applicationId) continue;
+            $questions = discord_bots_management_request('GET', '/api/questions')['payload']['questions'] ?? [];
+            return ['application' => $application, 'questions' => $questions];
+        }
+        throw new RuntimeException('Application not found.');
+    }
     if ($feature === 'user-permissions') {
         $userId = discord_bots_numeric_id((string) ($query['user_id'] ?? ''));
         return discord_bots_management_request('GET', '/api/users/' . $userId . '/action-permissions')['payload'];
@@ -326,8 +337,18 @@ function discord_bots_management_action(string $action, array $input): string
     if (!updates_writes_enabled()) throw new RuntimeException('Discord Bots changes are disabled.');
     switch ($action) {
         case 'save_questions':
-            $questions = json_decode((string) ($input['questions_json'] ?? ''), true, 128, JSON_THROW_ON_ERROR);
-            if (!is_array($questions)) throw new InvalidArgumentException('Enter a valid questions array.');
+            $questionKeys = array_values((array) ($input['question_key'] ?? []));
+            $questionTexts = array_values((array) ($input['question_text'] ?? []));
+            if (count($questionKeys) !== count($questionTexts) || !$questionKeys) throw new InvalidArgumentException('Add at least one complete question.');
+            $questions = [];
+            foreach ($questionKeys as $index => $questionKey) {
+                $questionKey = trim((string) $questionKey);
+                $questionText = trim((string) $questionTexts[$index]);
+                if ($questionKey === '' || preg_match('/^[A-Za-z0-9_]+$/', $questionKey) !== 1) throw new InvalidArgumentException('Question keys may only contain letters, numbers, and underscores.');
+                if ($questionText === '' || mb_strlen($questionText) > 500) throw new InvalidArgumentException('Each question must contain between 1 and 500 characters.');
+                $questions[] = ['key' => $questionKey, 'question' => $questionText];
+            }
+            if (count(array_unique(array_column($questions, 'key'))) !== count($questions)) throw new InvalidArgumentException('Question keys must be unique.');
             discord_bots_management_request('POST', '/api/questions', ['questions' => $questions]);
             return 'Application questions saved.';
         case 'update_user':

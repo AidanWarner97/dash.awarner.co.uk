@@ -481,4 +481,52 @@ if (chartData && chartCanvas && window.Chart) {
     });
 }
 
+const questionEditor = document.querySelector('[data-question-editor]');
+if (questionEditor) {
+    const questionList = questionEditor.querySelector('[data-question-list]');
+    const questionTemplate = questionEditor.querySelector('[data-question-template]');
+    const rows = () => [...questionList.querySelectorAll('[data-question-item]')];
+    const refreshQuestions = () => {
+        const currentRows = rows();
+        currentRows.forEach((row, index) => {
+            row.querySelector('[data-question-number]').textContent = String(index + 1);
+            row.querySelector('[data-question-up]').disabled = index === 0;
+            row.querySelector('[data-question-down]').disabled = index === currentRows.length - 1;
+            row.querySelector('[data-question-remove]').disabled = currentRows.length === 1;
+        });
+        refreshIcons();
+    };
+    const updateCount = textarea => {
+        textarea.closest('.question-copy').querySelector('[data-question-count]').textContent = String(textarea.value.length);
+    };
+
+    questionEditor.addEventListener('input', event => {
+        if (event.target.matches('textarea[name="question_text[]"]')) updateCount(event.target);
+    });
+    questionEditor.addEventListener('click', event => {
+        const button = event.target.closest('button');
+        if (!button) return;
+        const row = button.closest('[data-question-item]');
+        if (button.matches('[data-question-add]')) {
+            const next = questionTemplate.content.firstElementChild.cloneNode(true);
+            const existingKeys = new Set(rows().map(item => item.querySelector('input[name="question_key[]"]').value));
+            let number = rows().length + 1;
+            while (existingKeys.has(`question_${number}`)) number += 1;
+            next.querySelector('input[name="question_key[]"]').value = `question_${number}`;
+            questionList.append(next);
+            next.querySelector('input').focus();
+        } else if (button.matches('[data-question-up]') && row.previousElementSibling) {
+            questionList.insertBefore(row, row.previousElementSibling);
+        } else if (button.matches('[data-question-down]') && row.nextElementSibling) {
+            questionList.insertBefore(row.nextElementSibling, row);
+        } else if (button.matches('[data-question-remove]') && rows().length > 1) {
+            row.remove();
+        } else {
+            return;
+        }
+        refreshQuestions();
+    });
+    refreshQuestions();
+}
+
 refreshIcons();

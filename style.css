@@ -245,7 +245,7 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
 .feature-copy strong { font-size: 0.73rem; }
 .feature-copy small { margin-top: 0.25rem; color: var(--muted); font-size: 0.6rem; line-height: 1.45; }
 .feature-mode-manage { border-color: #4d705c; color: var(--success); }
-.management-card { min-height: 0; padding: 0; }
+.management-card { min-height: 0; padding: 0; overflow: hidden; }
 .management-table-wrap { overflow-x: auto; }
 .management-table-wrap td strong, .management-table-wrap td small, .management-user strong, .management-user small { display: block; }
 .management-table-wrap td small, .management-user small { margin-top: 0.2rem; color: var(--muted); font-size: 0.58rem; }
@@ -281,6 +281,64 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
 .permission-grid strong { font-size: 0.68rem; }
 .permission-grid small { margin-top: 0.2rem; color: var(--muted); font-size: 0.56rem; text-transform: capitalize; }
 .management-card > form > .management-actions { padding: 1rem 1.2rem; border-top: 1px solid var(--line); }
+.management-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 1rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+.management-summary span { display: grid; gap: 0.2rem; padding: 0.8rem 1rem; border-right: 1px solid var(--line); }
+.management-summary span:last-child { border-right: 0; }
+.management-summary small { color: var(--muted); font-size: 0.55rem; font-weight: 700; text-transform: uppercase; }
+.management-summary strong { font-size: 1.1rem; }
+.management-filters { display: grid; grid-template-columns: minmax(15rem, 1fr) minmax(9rem, auto) minmax(10rem, auto) auto auto; align-items: end; gap: 0.65rem; margin-bottom: 1rem; padding: 1rem; border-radius: var(--radius); background: var(--panel); }
+.management-filters > label:not(.search-field) { display: grid; gap: 0.35rem; color: var(--muted); font-size: 0.58rem; font-weight: 700; text-transform: uppercase; }
+.management-filters input, .management-filters select { width: 100%; min-height: 2.75rem; padding: 0.65rem 0.75rem; border: 2px solid var(--line); border-radius: var(--radius); outline: none; color: var(--text); background: var(--base); }
+.management-filters input:focus, .management-filters select:focus { border-color: var(--accent); }
+.management-filters .search-field input { padding-left: 2.3rem; }
+.application-table td { vertical-align: middle; }
+.application-table time { color: var(--muted); font-size: 0.62rem; white-space: nowrap; }
+.management-empty { padding: 2rem !important; color: var(--muted); text-align: center !important; }
+.detail-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.application-detail-layout { display: grid; grid-template-columns: minmax(18rem, 0.72fr) minmax(0, 1.4fr); align-items: start; gap: 1rem; }
+.application-profile, .application-answers { min-height: 0; padding: 0; overflow: hidden; }
+.application-profile-heading { display: flex; align-items: center; gap: 1rem; padding: 1.3rem; border-bottom: 1px solid var(--line); }
+.application-avatar { display: grid; width: 3.4rem; height: 3.4rem; flex: 0 0 auto; place-items: center; border: 2px solid var(--accent); border-radius: var(--radius); color: var(--accent); background: var(--panel-dark); }
+.application-profile-heading small, .application-profile-heading h2, .application-profile-heading p { display: block; margin: 0; }
+.application-profile-heading small { color: var(--accent); font-size: 0.55rem; font-weight: 700; }
+.application-profile-heading h2 { margin-top: 0.2rem; font-size: 1rem; }
+.application-profile-heading p { margin-top: 0.2rem; color: var(--muted); font-size: 0.62rem; }
+.application-metadata { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; }
+.application-metadata div { min-width: 0; padding: 0.85rem 1.2rem; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.application-metadata div:nth-child(2n) { border-right: 0; }
+.application-metadata dt { color: var(--muted); font-size: 0.52rem; font-weight: 700; text-transform: uppercase; }
+.application-metadata dd { overflow-wrap: anywhere; margin: 0.25rem 0 0; font-size: 0.68rem; }
+.application-decision { padding: 1rem 1.2rem; border-left: 4px solid var(--accent); background: var(--panel-dark); }
+.application-decision small { color: var(--accent); font-size: 0.55rem; font-weight: 700; }
+.application-decision p { margin: 0.4rem 0 0; color: var(--muted); font-size: 0.68rem; line-height: 1.55; }
+.answer-list { display: grid; }
+.answer-list section { padding: 1rem 1.2rem; border-bottom: 1px solid var(--line); }
+.answer-list section:last-child { border-bottom: 0; }
+.answer-list small { color: var(--accent); font-size: 0.52rem; font-weight: 700; text-transform: uppercase; }
+.answer-list h3 { margin: 0.25rem 0 0.45rem; font-size: 0.7rem; line-height: 1.45; }
+.answer-list p { margin: 0; overflow-wrap: anywhere; color: var(--muted); font-size: 0.68rem; line-height: 1.6; }
+.question-editor { overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+.question-editor-header, .question-editor-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.2rem; }
+.question-editor-header { border-bottom: 2px solid var(--line); }
+.question-editor-header small { color: var(--accent); font-size: 0.55rem; font-weight: 700; }
+.question-editor-header h2 { margin: 0.2rem 0; font-size: 0.95rem; }
+.question-editor-header p { margin: 0; color: var(--muted); font-size: 0.62rem; }
+.question-list { display: grid; }
+.question-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 1rem; padding: 1.15rem 1.2rem; border-bottom: 1px solid var(--line); background: var(--panel-dark); }
+.question-order { display: grid; width: 2.5rem; justify-items: center; gap: 0.5rem; padding-top: 1.15rem; color: var(--muted); }
+.question-order span { display: grid; width: 1.8rem; height: 1.8rem; place-items: center; border: 1px solid var(--line); border-radius: 50%; color: var(--text); font-size: 0.62rem; font-weight: 700; background: var(--base); }
+.question-order svg { width: 0.9rem; }
+.question-fields { display: grid; grid-template-columns: minmax(10rem, 0.55fr) minmax(16rem, 1.45fr); gap: 0.8rem; }
+.question-fields label { display: grid; align-content: start; gap: 0.35rem; color: var(--muted); font-size: 0.56rem; font-weight: 700; text-transform: uppercase; }
+.question-fields input, .question-fields textarea { width: 100%; padding: 0.7rem 0.75rem; border: 2px solid var(--line); border-radius: var(--radius); outline: none; resize: vertical; color: var(--text); background: var(--base); }
+.question-fields input:focus, .question-fields textarea:focus { border-color: var(--accent); }
+.question-fields small { font-size: 0.52rem; font-weight: 500; text-align: right; text-transform: none; }
+.question-fields label:first-child small { text-align: left; }
+.question-actions { display: flex; gap: 0.4rem; padding-top: 1.05rem; }
+.question-actions .icon-button { width: 2.35rem; height: 2.35rem; }
+.question-actions .icon-button:disabled { opacity: 0.35; cursor: not-allowed; }
+.question-editor-footer { border-top: 1px solid var(--line); }
+.question-editor-footer > span { display: flex; align-items: center; gap: 0.5rem; color: var(--muted); font-size: 0.58rem; }
 .health-overall { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; padding: 1.2rem; border: 1px solid var(--line); border-left-width: 4px; border-radius: var(--radius); background: var(--panel); }
 .health-overall.health-healthy { border-left-color: var(--success); }
 .health-overall.health-warning, .health-overall.health-building, .health-overall.health-idle { border-left-color: #f9e2af; }
@@ -685,6 +743,10 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
     .feature-row:last-child { border-bottom: 0; }
     .management-inline-form { grid-template-columns: minmax(0, 1fr) auto auto; }
     .management-inline-form .management-user { grid-column: 1 / -1; }
+    .management-filters { grid-template-columns: 1fr 1fr; }
+    .management-filters .search-field { grid-column: 1 / -1; }
+    .application-detail-layout { grid-template-columns: 1fr; }
+    .question-fields { grid-template-columns: 1fr; }
     .permission-grid { grid-template-columns: 1fr; }
     .permission-grid label { border-right: 0; }
     .automation-schedule, .automation-row-actions { grid-column: 2; }
@@ -758,6 +820,21 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
     .feature-row > .status-badge { display: none; }
     .management-inline-form { grid-template-columns: 1fr auto; }
     .management-inline-form > label, .management-inline-form > select, .management-inline-form > input:not([type="hidden"]) { grid-column: 1 / -1; width: 100%; }
+    .management-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .management-summary span { padding-inline: 0.7rem; }
+    .management-filters { grid-template-columns: 1fr; }
+    .management-filters .search-field { grid-column: auto; }
+    .management-filters .primary-button, .management-filters .secondary-button { width: 100%; }
+    .application-profile, .application-answers { min-height: 0; padding: 0; }
+    .management-card { min-height: 0; padding: 0; }
+    .application-metadata { grid-template-columns: 1fr; }
+    .application-metadata div { border-right: 0; }
+    .question-editor-header, .question-editor-footer { align-items: stretch; flex-direction: column; }
+    .question-editor-header .secondary-button, .question-editor-footer .primary-button { width: 100%; }
+    .question-item { grid-template-columns: auto minmax(0, 1fr); gap: 0.65rem; padding-inline: 0.8rem; }
+    .question-order { grid-row: 1 / span 2; width: 2rem; }
+    .question-fields { grid-column: 2; }
+    .question-actions { grid-column: 2; padding-top: 0; }
     .management-actions { align-items: stretch; flex-direction: column; }
     .management-actions .secondary-button { width: 100%; }
 }

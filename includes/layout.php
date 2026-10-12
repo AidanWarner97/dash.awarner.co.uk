@@ -93,6 +93,16 @@ function dashboard_header(string $title, string $active = 'dashboard', ?string $
                         <?= dashboard_nav_link('/discord-bots/', 'house', 'Overview', $active === 'discord-bots-overview') ?>
                         <?= dashboard_nav_link('/discord-bots/health/', 'heart-pulse', 'Health Monitor', $active === 'discord-bots-health') ?>
                         <?= dashboard_nav_link('/discord-bots/management/', 'panels-top-left', 'Management', $active === 'discord-bots-management') ?>
+                        <?= dashboard_nav_link('/discord-bots/management/feature.php?feature=applications', 'files', 'Applications', $active === 'discord-bots-applications') ?>
+                        <?= dashboard_nav_link('/discord-bots/management/feature.php?feature=applicants', 'user-round-search', 'Applicants', $active === 'discord-bots-applicants') ?>
+                        <?= dashboard_nav_link('/discord-bots/management/feature.php?feature=questions', 'list-checks', 'Application Questions', $active === 'discord-bots-questions') ?>
+                        <?= dashboard_nav_link('/discord-bots/management/feature.php?feature=users', 'users', 'Users', $active === 'discord-bots-users') ?>
+                        <?= dashboard_nav_link('/discord-bots/management/feature.php?feature=group-permissions', 'shield-check', 'Permissions', $active === 'discord-bots-group-permissions') ?>
+                        <?= dashboard_nav_link('/discord-bots/management/feature.php?feature=abuse', 'shield-alert', 'Abuse', $active === 'discord-bots-abuse') ?>
+                        <?= dashboard_nav_link('/discord-bots/management/feature.php?feature=cache', 'database-zap', 'Cache', $active === 'discord-bots-cache') ?>
+                        <?= dashboard_nav_link('/discord-bots/management/feature.php?feature=privacy-requests', 'user-round-check', 'Privacy Requests', $active === 'discord-bots-privacy-requests') ?>
+                        <?= dashboard_nav_link('/discord-bots/management/feature.php?feature=action-logs', 'list-restart', 'Action Logs', $active === 'discord-bots-action-logs') ?>
+                        <?= dashboard_nav_link('/discord-bots/management/feature.php?feature=system-logs', 'scroll-text', 'System Logs', $active === 'discord-bots-system-logs') ?>
                         <?= dashboard_nav_link('/discord-bots/settings/', 'settings', 'Settings', $active === 'discord-bots-settings') ?>
                     </div>
                 </details>
