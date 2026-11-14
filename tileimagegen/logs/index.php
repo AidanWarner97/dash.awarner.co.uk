@@ -50,16 +50,28 @@ dashboard_header($settings['title'] . ': Logs', 'tile-logs', 'tileimagegen');
 	<?php if ($selectedLog): ?>
 		<article class="content-card log-detail">
 			<div class="card-heading"><div><small><?= $escape(strtoupper($selectedLog['status'])) ?></small><h2><?= $escape($selectedLog['tile_name']) ?></h2></div><span class="status-badge log-status-<?= $escape($selectedLog['status']) ?>"><?= $escape($selectedLog['status']) ?></span></div>
-			<dl class="log-metadata">
-				<div><dt>Request ID</dt><dd><?= $escape($selectedLog['request_id']) ?></dd></div>
-				<div><dt>Created</dt><dd><?= $escape(date('j M Y, H:i:s', strtotime((string) $selectedLog['created_at']))) ?></dd></div>
-				<div><dt>IP address</dt><dd><?= $escape($selectedLog['ip']) ?></dd></div>
-				<div><dt>Layout</dt><dd><?= $escape($selectedLog['layout']) ?></dd></div>
-				<div><dt>Tile size</dt><dd><?= $escape($selectedLog['tile_size_width']) ?> × <?= $escape($selectedLog['tile_size_height']) ?> px</dd></div>
-				<div><dt>Images</dt><dd><?= $escape($selectedLog['image_file_count']) ?></dd></div>
-				<div><dt>Grout</dt><dd><i class="colour-swatch" style="background-color: <?= $escape($selectedLog['grout_colour']) ?>"></i><?= $escape($selectedLog['grout_colour']) ?> · <?= $escape($selectedLog['grout_size']) ?> px</dd></div>
-				<div><dt>Downloaded</dt><dd><?= $selectedLog['downloaded'] ? 'Yes' : 'No' ?><?= $selectedLog['downloaded_at'] ? ' · ' . $escape(date('j M Y, H:i:s', strtotime((string) $selectedLog['downloaded_at']))) : '' ?></dd></div>
-			</dl>
+			<div class="log-detail-columns">
+				<dl class="log-metadata">
+					<div><dt>Date</dt><dd><?= $escape(date('j M Y, H:i:s', strtotime((string) $selectedLog['created_at']))) ?></dd></div>
+					<div><dt>IP address</dt><dd><?= $escape($selectedLog['ip']) ?></dd></div>
+					<div><dt>User</dt><dd><?php if (!empty($selectedLog['user_name']) || !empty($selectedLog['user_email'])): ?><?= $escape($selectedLog['user_name'] ?? '') ?><?= !empty($selectedLog['user_name']) && !empty($selectedLog['user_email']) ? ' · ' : '' ?><?= $escape($selectedLog['user_email'] ?? '') ?><?php else: ?>Not available<?php endif; ?></dd></div>
+					<div><dt>Tile size</dt><dd><?= $escape($selectedLog['tile_size_width']) ?> × <?= $escape($selectedLog['tile_size_height']) ?> px</dd></div>
+					<div><dt>Grout</dt><dd><i class="colour-swatch" style="background-color: <?= $escape($selectedLog['grout_colour']) ?>"></i><?= $escape($selectedLog['grout_colour']) ?> · <?= $escape($selectedLog['grout_size']) ?> px</dd></div>
+					<div><dt>Layout</dt><dd><?= $escape($selectedLog['layout']) ?></dd></div>
+					<div><dt>Images</dt><dd><?= $escape($selectedLog['image_file_count']) ?></dd></div>
+					<div><dt>Image mix used?</dt><dd><?= !isset($selectedLog['image_mix_used']) ? 'Not available' : ((int) $selectedLog['image_mix_used'] === 1 ? 'Yes' : 'No') ?></dd></div>
+					<div><dt>Downloaded?</dt><dd><?= $selectedLog['downloaded'] ? 'Yes' : 'No' ?><?= $selectedLog['downloaded_at'] ? ' · ' . $escape(date('j M Y, H:i:s', strtotime((string) $selectedLog['downloaded_at']))) : '' ?></dd></div>
+					<div><dt>Request ID</dt><dd><?= $escape($selectedLog['request_id']) ?></dd></div>
+				</dl>
+				<div class="log-preview">
+					<h3>Generated image</h3>
+					<?php if (!empty($selectedLog['preview_jpeg'])): ?>
+						<img src="data:image/jpeg;base64,<?= base64_encode($selectedLog['preview_jpeg']) ?>" alt="Generated tile pattern preview">
+					<?php else: ?>
+						<p>No preview available for this generation.</p>
+					<?php endif; ?>
+				</div>
+			</div>
 			<?php if ($selectedLog['error_message'] !== null && $selectedLog['error_message'] !== ''): ?><div class="log-error"><small>ERROR MESSAGE</small><pre><?= $escape($selectedLog['error_message']) ?></pre></div><?php endif; ?>
 		</article>
 	<?php elseif ($error === null): ?>

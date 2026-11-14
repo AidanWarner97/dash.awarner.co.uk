@@ -677,11 +677,15 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
 .log-download { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.58rem; white-space: nowrap; }
 .log-download svg, .log-row > svg { width: 0.85rem; }
 .log-row time { font-size: 0.58rem; white-space: nowrap; }
-.log-metadata { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; }
+.log-detail-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.log-metadata { display: grid; grid-template-columns: 1fr; margin: 0; }
 .log-metadata div { min-width: 0; padding: 1rem 1.2rem; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.log-metadata div:nth-child(even) { border-right: 0; }
 .log-metadata dt { margin-bottom: 0.3rem; color: var(--muted); font-size: 0.56rem; font-weight: 700; text-transform: uppercase; }
 .log-metadata dd { display: flex; min-width: 0; align-items: center; gap: 0.45rem; margin: 0; overflow-wrap: anywhere; font-size: 0.72rem; }
+.log-preview { min-width: 0; padding: 1.2rem; }
+.log-preview h3 { margin: 0 0 1rem; color: var(--muted); font-size: 0.56rem; text-transform: uppercase; }
+.log-preview img { display: block; max-width: 100%; height: auto; border-radius: var(--radius); }
+.log-preview p { color: var(--muted); font-size: 0.72rem; }
 .colour-swatch { width: 0.8rem; height: 0.8rem; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 2px; }
 .log-error { padding: 1.2rem; }
 .log-error small { color: #f38ba8; font-size: 0.56rem; font-weight: 700; }
@@ -784,7 +788,7 @@ main { grid-column: 2; width: min(1160px, 100%); margin: 0 auto; padding: 2rem; 
     .log-filters .search-field { grid-column: auto; }
     .log-row { gap: 0.65rem; padding-inline: 0.8rem; }
     .log-row > .status-badge { display: none; }
-    .log-metadata { grid-template-columns: 1fr; }
+    .log-detail-columns { grid-template-columns: 1fr; }
     .log-metadata div { border-right: 0; }
     .message-meta { grid-template-columns: 1fr; }
     .settings-fields { grid-template-columns: 1fr; padding: 1rem; }
