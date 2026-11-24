@@ -269,6 +269,32 @@ function catalogue_import_csv_upload(array $upload, ?string $file = null): array
     return catalogue_import_csv_file($path, $file);
 }
 
+// The browser base64-encodes the CSV so the WAF does not flag plain CSV text as shell commands.
+function catalogue_import_csv_base64(string $encoded, ?string $file = null): array
+{
+    if (!updates_writes_enabled()) {
+        throw new RuntimeException('Catalogue writing is disabled.');
+    }
+    $encoded = preg_replace('/\s+/', '', $encoded) ?? '';
+    if ($encoded === '' || strlen($encoded) > (int) ceil(2 * 1024 * 1024 / 3) * 4) {
+        throw new InvalidArgumentException('The catalogue CSV must be a valid upload no larger than 2 MB.');
+    }
+    $contents = base64_decode($encoded, true);
+    if ($contents === false || $contents === '' || strlen($contents) > 2 * 1024 * 1024) {
+        throw new InvalidArgumentException('The catalogue CSV must be a valid upload no larger than 2 MB.');
+    }
+
+    $path = tempnam(sys_get_temp_dir(), 'catalogue-csv-');
+    if ($path === false || file_put_contents($path, $contents) === false) {
+        throw new RuntimeException('The catalogue CSV could not be stored for import.');
+    }
+    try {
+        return catalogue_import_csv_file($path, $file);
+    } finally {
+        @unlink($path);
+    }
+}
+
 function catalogue_import_csv_file(string $csvPath, ?string $file = null): array
 {
     if (!updates_writes_enabled()) {

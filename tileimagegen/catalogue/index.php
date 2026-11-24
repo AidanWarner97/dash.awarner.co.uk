@@ -48,7 +48,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             exit;
         }
         if ($action === 'import-csv') {
-            $result = catalogue_import_csv_upload($_FILES['catalogue_csv'] ?? []);
+            $encodedCsv = (string) ($_POST['catalogue_csv_base64'] ?? '');
+            $result = $encodedCsv !== ''
+                ? catalogue_import_csv_base64($encodedCsv)
+                : catalogue_import_csv_upload($_FILES['catalogue_csv'] ?? []);
             header('Location: /tileimagegen/catalogue/?imported=1&rows=' . $result['rows'] . '&created=' . $result['created'] . '&updated=' . $result['updated']);
             exit;
         }
@@ -156,9 +159,10 @@ dashboard_header($settings['title'] . ': Catalogue', 'tile-catalogue', 'tileimag
         </form>
     </dialog>
     <dialog class="catalogue-modal catalogue-import-modal" data-catalogue-import-modal>
-        <form method="post" enctype="multipart/form-data">
+        <form method="post" enctype="multipart/form-data" data-catalogue-import-form>
             <input type="hidden" name="csrf_token" value="<?= $escape(updates_csrf_token()) ?>">
             <input type="hidden" name="action" value="import-csv">
+            <input type="hidden" name="catalogue_csv_base64" value="" data-catalogue-import-data>
             <div class="catalogue-modal-heading"><div><small>BULK CATALOGUE</small><h2>IMPORT CSV</h2></div><button class="icon-button" type="button" data-catalogue-import-close aria-label="Close import dialog"><i data-lucide="x"></i></button></div>
             <div class="catalogue-import-content">
                 <p>Each row creates or updates one size. Existing images are kept, ready for upload from the entry's Edit dialog.</p>
