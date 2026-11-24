@@ -189,47 +189,6 @@ if (catalogueManager) {
     }, 60000);
 }
 
-const storageStatus = document.querySelector('[data-catalogue-storage-status]');
-if (storageStatus) {
-    const formatBytes = bytes => {
-        if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
-        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-        const unit = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-        return `${(bytes / (1024 ** unit)).toFixed(unit > 1 ? 1 : 0)} ${units[unit]}`;
-    };
-    const pollStorage = async () => {
-        try {
-            const response = await fetch(`${storageStatus.dataset.endpoint}?view=status`, {
-                headers: { 'Accept': 'application/json' }, cache: 'no-store',
-            });
-            const result = await response.json();
-            if (!response.ok || !result.ok) throw new Error(result.error || 'Status unavailable');
-            const status = result.storage;
-            storageStatus.querySelector('[data-storage-ready]').textContent = status.ready.toLocaleString();
-            storageStatus.querySelector('[data-storage-pending]').textContent = status.pending.toLocaleString();
-            storageStatus.querySelector('[data-storage-errors]').textContent = status.errors.toLocaleString();
-            storageStatus.querySelector('[data-storage-bytes]').textContent = formatBytes(status.ready_bytes);
-            const state = status.errors > 0 ? 'Needs attention' : status.pending > 0 ? 'Migrating' : 'Complete';
-            const stateElement = storageStatus.querySelector('[data-storage-state]');
-            stateElement.textContent = `${state} · ${status.percent.toFixed(1)}%`;
-            stateElement.dataset.state = status.errors > 0 ? 'error' : status.pending > 0 ? 'active' : 'complete';
-            const progress = storageStatus.querySelector('.catalogue-storage-progress');
-            progress.setAttribute('aria-valuenow', status.percent);
-            storageStatus.querySelector('[data-storage-progress]').style.width = `${status.percent}%`;
-            const updated = status.updated_at ? new Date(`${status.updated_at.replace(' ', 'T')}Z`) : null;
-            storageStatus.querySelector('[data-storage-updated]').textContent = updated && !Number.isNaN(updated.valueOf())
-                ? `Last migration update ${updated.toLocaleString()}`
-                : 'Waiting for migration activity…';
-        } catch {
-            storageStatus.querySelector('[data-storage-state]').textContent = 'Status unavailable';
-        }
-    };
-    pollStorage();
-    window.setInterval(() => {
-        if (!document.hidden) pollStorage();
-    }, 3000);
-}
-
 const catalogueModal = document.querySelector('[data-catalogue-modal]');
 if (catalogueModal) {
     const editForm = catalogueModal.querySelector('[data-catalogue-edit-form]');

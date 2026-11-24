@@ -98,18 +98,6 @@ dashboard_header($settings['title'] . ': Catalogue', 'tile-catalogue', 'tileimag
     <?php if ($error !== null): ?><div class="flash error"><i data-lucide="circle-alert"></i><?= $escape($error) ?></div><?php endif; ?>
     <?php if (!updates_writes_enabled()): ?><div class="data-notice"><i data-lucide="lock-keyhole"></i><div><strong>Catalogue writing is disabled</strong><p>Enable authenticated dashboard writes before changing catalogue data.</p></div></div><?php endif; ?>
 
-    <section class="catalogue-storage-status" data-catalogue-storage-status data-endpoint="/api/tileimagegen/catalogue.php">
-        <div class="catalogue-storage-heading"><div><small>CDN MIGRATION</small><strong>Bunny Storage</strong></div><span data-storage-state>Checking</span></div>
-        <div class="catalogue-storage-progress" role="progressbar" aria-label="Bunny Storage migration" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i data-storage-progress></i></div>
-        <div class="catalogue-storage-metrics">
-            <span><small>VERIFIED</small><strong data-storage-ready>—</strong></span>
-            <span><small>PENDING</small><strong data-storage-pending>—</strong></span>
-            <span><small>ERRORS</small><strong data-storage-errors>—</strong></span>
-            <span><small>UPLOADED</small><strong data-storage-bytes>—</strong></span>
-        </div>
-        <p data-storage-updated>Loading migration status…</p>
-    </section>
-
     <div class="catalogue-summary" aria-label="Catalogue totals">
         <?php foreach ($summary as $label => $total): ?><span><small><?= $escape(strtoupper($label)) ?></small><strong data-catalogue-total="<?= $escape($label) ?>"><?= (int) $total ?></strong></span><?php endforeach; ?>
     </div>

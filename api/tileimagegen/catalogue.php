@@ -11,14 +11,6 @@ header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 
 try {
-    if (($_GET['view'] ?? 'catalogue') === 'status') {
-        header('Cache-Control: no-store');
-        echo json_encode([
-            'ok' => true,
-            'storage' => catalogue_database_storage_status(),
-        ], JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
-        exit;
-    }
 
     $snapshot = catalogue_database_snapshot();
     if ($snapshot === null) {

@@ -99,40 +99,6 @@ function catalogue_database_snapshot(): ?array
     ];
 }
 
-function catalogue_database_storage_status(): array
-{
-    $table = catalogue_database_tables()['assets'];
-    $rows = catalogue_database_read(static fn(PDO $database): array => $database->query(
-        "SELECT storage_state, COUNT(*) AS total, COALESCE(SUM(byte_size), 0) AS bytes,
-        MAX(updated_at) AS updated_at FROM {$table} GROUP BY storage_state"
-    )->fetchAll());
-    $counts = ['pending' => 0, 'ready' => 0, 'error' => 0, 'delete_pending' => 0, 'deleted' => 0];
-    $readyBytes = 0;
-    $updatedAt = null;
-    foreach ($rows as $row) {
-        $state = (string) $row['storage_state'];
-        $counts[$state] = (int) $row['total'];
-        if ($state === 'ready') {
-            $readyBytes = (int) $row['bytes'];
-        }
-        if ($row['updated_at'] !== null && ($updatedAt === null || (string) $row['updated_at'] > $updatedAt)) {
-            $updatedAt = (string) $row['updated_at'];
-        }
-    }
-    $total = $counts['ready'] + $counts['pending'] + $counts['error'];
-
-    return [
-        'total' => $total,
-        'ready' => $counts['ready'],
-        'pending' => $counts['pending'],
-        'errors' => $counts['error'],
-        'deleted' => $counts['deleted'],
-        'ready_bytes' => $readyBytes,
-        'percent' => $total > 0 ? round(($counts['ready'] / $total) * 100, 1) : 0.0,
-        'updated_at' => $updatedAt,
-    ];
-}
-
 function catalogue_database_image_keys(array $catalogue): array
 {
     $keys = [];
