@@ -54,8 +54,10 @@ if (catalogueManager) {
         return icon;
     };
     const imageUrl = path => imageBaseUrl + path.split('/').map(encodeURIComponent).join('/');
-    const makeAccordion = (kind, item, iconName, childLabel, renderChildren) => {
+    let openKeys = new Set();
+    const makeAccordion = (kind, key, item, iconName, childLabel, renderChildren) => {
         const details = makeElement('details', `catalogue-accordion catalogue-${kind}`);
+        details.dataset.catalogueKey = key;
         const summary = document.createElement('summary');
         const icon = makeElement('span', 'catalogue-accordion-icon');
         icon.append(makeIcon(iconName));
@@ -72,6 +74,12 @@ if (catalogueManager) {
             renderChildren(content);
             refreshIcons();
         });
+        // Re-render synchronously so nested sections can restore their open state too.
+        if (openKeys.has(key)) {
+            details.dataset.rendered = '1';
+            renderChildren(content);
+            details.open = true;
+        }
         return details;
     };
     const appendHidden = (form, name, value) => {
@@ -129,15 +137,15 @@ if (catalogueManager) {
         return row;
     };
     const makeVersion = (brand, range, version) => makeAccordion(
-        'version', version, 'swatch-book', `${(version.sizes || []).length} size(s)`,
+        'version', `${brand.id}/${range.id}/${version.id}`, version, 'swatch-book', `${(version.sizes || []).length} size(s)`,
         content => content.append(...(version.sizes || []).map(size => makeSize(brand, range, version, size)))
     );
     const makeRange = (brand, range) => makeAccordion(
-        'range', range, 'layers-3', `${(range.versions || []).length} version(s)`,
+        'range', `${brand.id}/${range.id}`, range, 'layers-3', `${(range.versions || []).length} version(s)`,
         content => content.append(...(range.versions || []).map(version => makeVersion(brand, range, version)))
     );
     const makeBrand = brand => makeAccordion(
-        'brand', brand, 'building-2', `${(brand.ranges || []).length} range(s)`,
+        'brand', String(brand.id), brand, 'building-2', `${(brand.ranges || []).length} range(s)`,
         content => content.append(...(brand.ranges || []).map(range => makeRange(brand, range)))
     );
     const renderCatalogue = result => {
@@ -153,6 +161,7 @@ if (catalogueManager) {
             return option;
         }));
         list.className = 'catalogue-list';
+        openKeys = new Set([...list.querySelectorAll('details[open][data-catalogue-key]')].map(details => details.dataset.catalogueKey));
         list.replaceChildren(...result.catalogue.brands.map(makeBrand));
         if (result.catalogue.brands.length === 0) {
             list.className = 'list-message';
@@ -185,7 +194,8 @@ if (catalogueManager) {
     };
     refreshCatalogue();
     window.setInterval(() => {
-        if (!document.hidden) refreshCatalogue(true);
+        // Skip background refreshes while a dialog is open so the edit modal keeps its row reference.
+        if (!document.hidden && !document.querySelector('dialog[open]')) refreshCatalogue(true);
     }, 60000);
 }
 
