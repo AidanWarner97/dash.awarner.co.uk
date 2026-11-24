@@ -283,7 +283,7 @@ if (catalogueModal) {
         formStatus.className = 'catalogue-form-status pending';
 
         try {
-            const response = await fetch(editForm.action || location.href, {
+            const response = await fetch(editForm.getAttribute('action') || location.href, {
                 method: 'POST',
                 body: new FormData(editForm),
                 headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
@@ -340,7 +340,7 @@ document.addEventListener('submit', async event => {
     const button = form.querySelector('button[type="submit"]');
     button.disabled = true;
     try {
-        const response = await fetch(form.action || location.href, {
+        const response = await fetch(form.getAttribute('action') || location.href, {
             method: 'POST',
             body: new FormData(form),
             headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
